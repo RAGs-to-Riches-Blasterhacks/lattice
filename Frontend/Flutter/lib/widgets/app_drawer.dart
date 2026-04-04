@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -77,8 +78,7 @@ class AppDrawer extends StatelessWidget {
                           icon: Icons.home_outlined,
                           label: 'Home',
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.of(context).popUntil((r) => r.isFirst);
+                            AppNavigation.goToHome(context);
                           },
                         ),
                         const _DrawerDivider(),
@@ -86,8 +86,7 @@ class AppDrawer extends StatelessWidget {
                           icon: Icons.person_outline,
                           label: 'Profile',
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pushNamed(context, '/profile');
+                            AppNavigation.goToProfile(context);
                           },
                         ),
                         const _DrawerDivider(),
@@ -95,8 +94,7 @@ class AppDrawer extends StatelessWidget {
                           icon: Icons.settings_outlined,
                           label: 'Settings',
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pushNamed(context, '/settings');
+                            AppNavigation.goToSettings(context);
                           },
                         ),
                         const _DrawerDivider(),

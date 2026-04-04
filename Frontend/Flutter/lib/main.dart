@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/screens/home_screen.dart';
 import 'package:lattice/screens/login_screen.dart';
-import 'package:lattice/screens/profile_screen.dart';
-import 'package:lattice/screens/roadmap.dart';
-import 'package:lattice/screens/settings_screen.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:provider/provider.dart';
@@ -48,33 +46,11 @@ class LatticeApp extends StatelessWidget {
           ),
         ),
         home: const _AuthGate(),
-        onGenerateRoute: _onGenerateRoute,
+        onGenerateRoute: AppNavigation.onGenerateRoute,
       ),
     );
   }
 
-  static Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
-    switch (settings.name) {
-      case '/profile':
-        return MaterialPageRoute(
-          builder: (_) => const ProfileScreen(),
-          settings: settings,
-        );
-      case '/settings':
-        return MaterialPageRoute(
-          builder: (_) => const SettingsScreen(),
-          settings: settings,
-        );
-      case '/roadmap':
-        final planId = settings.arguments as String?;
-        return MaterialPageRoute(
-          builder: (_) => RoadmapScreen(planId: planId),
-          settings: settings,
-        );
-      default:
-        return null;
-    }
-  }
 }
 
 /// Shows [LoginScreen] while auth is loading or when logged out.
