@@ -4,7 +4,7 @@ import 'package:lattice/screens/profile_social_screen.dart';
 import 'package:lattice/screens/profile_stats_screen.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
-import 'package:lattice/widgets/plan_input_bar.dart';
+import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
 
 enum ProfileTab { stats, history, social }
@@ -65,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          const PlanInputBar(),
+          const ChatOverlay(),
         ],
       ),
     );
