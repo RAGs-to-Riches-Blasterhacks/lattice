@@ -96,7 +96,7 @@ class AppDrawer extends StatelessWidget {
                           label: 'Settings',
                           onTap: () {
                             Navigator.pop(context);
-                            // TODO: navigate to settings
+                            Navigator.pushNamed(context, '/settings');
                           },
                         ),
                         const _DrawerDivider(),
