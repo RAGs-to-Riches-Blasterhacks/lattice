@@ -239,8 +239,12 @@ class _PlanCardState extends State<PlanCard> {
           ...resources.map((r) => Padding(
                 padding: const EdgeInsets.only(bottom: 6.0),
                 child: GestureDetector(
-                  onTap: () => launchUrl(Uri.parse(r.url),
-                      mode: LaunchMode.externalApplication),
+                  onTap: () {
+                    final uri = Uri.tryParse(r.url);
+                    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+                      launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

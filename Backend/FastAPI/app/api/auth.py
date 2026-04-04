@@ -39,8 +39,8 @@ async def register(body: EmailRegisterRequest):
             password=body.password,
             display_name=body.display_name,
         )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Registration failed")
 
     return AuthResponse(**tokens, user=_user_response(user))
 
@@ -53,8 +53,8 @@ async def login(body: EmailLoginRequest):
             email=body.email,
             password=body.password,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return AuthResponse(**tokens, user=_user_response(user))
 
@@ -70,7 +70,7 @@ async def oauth_login(body: OAuthTokenRequest):
             id_token=body.id_token,
             provider=body.provider,
         )
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
     return AuthResponse(**tokens, user=_user_response(user))
