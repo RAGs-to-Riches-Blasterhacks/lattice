@@ -136,8 +136,11 @@ async def get_agent_response(
         if not text:
             continue
 
-        # Only capture text from root_agent — sub-agent JSON stays internal
-        if event.is_final_response() and getattr(event, "author", None) == "root_agent":
+        author = getattr(event, "author", None)
+        is_final = event.is_final_response()
+        logger.info("EVENT author=%s is_final=%s text_preview=%.120s", author, is_final, text)
+
+        if is_final and author == "root_agent":
             root_text = text
 
     # Refresh session to check post-run state
@@ -170,7 +173,6 @@ async def get_agent_response(
                     {"$set": {
                         "state.plan_id": new_plan_id,
                         "state.plan_result": None,
-                        "state.palette_result": None,
                     }},
                 )
         except Exception:

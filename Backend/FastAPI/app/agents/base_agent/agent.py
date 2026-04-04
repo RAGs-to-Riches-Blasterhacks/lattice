@@ -4,12 +4,11 @@ import litellm
 litellm.suppress_debug_info = True
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools import ToolContext
 
-from app.models.plan import Palette, Resource, SuccessLevels
 
 MODEL = LiteLlm(model="openai/gpt-5.4-mini")
 
@@ -21,11 +20,13 @@ MODEL = LiteLlm(model="openai/gpt-5.4-mini")
 
 
 class NodeOptionOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: str
     description: str = ""
 
 
 class PlanNodeOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_number: int
     title: str
     description: str = ""
@@ -34,18 +35,72 @@ class PlanNodeOutput(BaseModel):
     options: list[NodeOptionOutput] = Field(default_factory=list)
 
 
+class SuccessLevelsOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    should_know: list[str] = Field(default_factory=list)
+    might_know: list[str] = Field(default_factory=list)
+    should_know_next: list[str] = Field(default_factory=list)
+
+
+# --- Palette output schema (OpenAI structured outputs needs additionalProperties: false) ---
+
+
+class ContrastCheckOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    pair: str = ""
+    contrast_ratio: float = 0.0
+    meets_aa: bool = False
+    meets_aaa: bool = False
+
+
+class PaletteAccessibilityOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    checks: list[ContrastCheckOutput] = Field(default_factory=list)
+    notes: str = ""
+
+
+class PaletteColorOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: str
+    hex: str
+    name: str
+    rationale: str = ""
+
+
+class PaletteOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    theme: str = ""
+    colors: list[PaletteColorOutput] = Field(default_factory=list)
+    accessibility: PaletteAccessibilityOutput = Field(default_factory=PaletteAccessibilityOutput)
+
+
+# --- Plan + Palette combined output ---
+
+
 class PlannerOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     skill: str
     end_goal: str
     days_per_week: int
     minutes_per_day: int
-    success_levels: SuccessLevels
+    success_levels: SuccessLevelsOutput
     nodes: list[PlanNodeOutput]
+    palette: PaletteOutput = Field(default_factory=PaletteOutput)
+
+
+class ResourceOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: str
+    title: str
+    url: str = ""
+    duration_minutes: int = 0
+    is_optional: bool = False
 
 
 class ResearcherOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     task: str
-    resources: list[Resource] = Field(default_factory=list)
+    resources: list[ResourceOutput] = Field(default_factory=list)
     guide: str = ""
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
@@ -103,10 +158,10 @@ def get_prerequisites(skill: str) -> dict:
 planner_agent = LlmAgent(
     model=MODEL,
     name="planner_agent",
-    description="Creates a structured, personalized learning roadmap.",
+    description="Creates a structured, personalized learning roadmap with a matching color palette.",
     output_key="plan_result",
     output_schema=PlannerOutput,
-    instruction="""You are a learning path designer. Given a skill, end goal, days_per_week, and minutes_per_day, design a 5-8 node roadmap.
+    instruction="""You are a learning path designer. Given a skill, end goal, days_per_week, and minutes_per_day, design a 5-8 node roadmap AND a color palette that matches the skill's vibe.
 
 Call estimate_difficulty and get_prerequisites first, then build the plan.
 
@@ -117,7 +172,14 @@ Rules:
 - 2-3 options per node
 - skill_level: beginner, intermediate, or advanced
 - Write descriptions like a friend, not a textbook
-- Write success_levels as things a real person would say""",
+- Write success_levels as things a real person would say
+
+Palette rules:
+- Pick 5 colors: primary, secondary, accent, background, text
+- Colors should match the vibe/energy of the skill being learned
+- Ensure text on background has contrast ratio >= 4.5
+- Ensure primary on background has contrast ratio >= 3.0
+- Give each color a short name and rationale""",
     tools=[estimate_difficulty, get_prerequisites],
 )
 
@@ -365,58 +427,6 @@ Write a 3-5 sentence friendly guide for approaching this task.""",
 
 
 # ---------------------------------------------------------------------------
-# UI Color Agent
-# ---------------------------------------------------------------------------
-
-
-def check_contrast_ratio(hex_color_1: str, hex_color_2: str) -> dict:
-    """Check the WCAG contrast ratio between two hex colors.
-
-    Args:
-        hex_color_1: First hex color (e.g. "#FFFFFF").
-        hex_color_2: Second hex color (e.g. "#000000").
-
-    Returns:
-        A dict with the contrast ratio and WCAG compliance levels.
-    """
-    def _hex_to_luminance(hex_color: str) -> float:
-        hex_color = hex_color.lstrip("#")
-        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        components = []
-        for c in (r, g, b):
-            s = c / 255.0
-            components.append(s / 12.92 if s <= 0.04045 else ((s + 0.055) / 1.055) ** 2.4)
-        return 0.2126 * components[0] + 0.7152 * components[1] + 0.0722 * components[2]
-
-    l1 = _hex_to_luminance(hex_color_1)
-    l2 = _hex_to_luminance(hex_color_2)
-    lighter, darker = max(l1, l2), min(l1, l2)
-    ratio = (lighter + 0.05) / (darker + 0.05)
-
-    return {
-        "hex_color_1": hex_color_1,
-        "hex_color_2": hex_color_2,
-        "contrast_ratio": round(ratio, 2),
-        "wcag_aa_normal_text": ratio >= 4.5,
-        "wcag_aa_large_text": ratio >= 3.0,
-        "wcag_aaa_normal_text": ratio >= 7.0,
-    }
-
-
-ui_agent = LlmAgent(
-    model=MODEL,
-    name="ui_agent",
-    description="Creates an accessible color palette for a learning skill.",
-    output_key="palette_result",
-    output_schema=Palette,
-    instruction="""Pick 5 colors (primary, secondary, accent, background, text) that match the vibe of the skill.
-Use check_contrast_ratio to verify text on background (>=4.5) and primary on background (>=3.0).
-Give each color a short name and rationale.""",
-    tools=[check_contrast_ratio],
-)
-
-
-# ---------------------------------------------------------------------------
 # Plan Persistence Tool
 # ---------------------------------------------------------------------------
 
@@ -455,9 +465,8 @@ async def persist_plan(state: dict) -> dict:
     if not user_id:
         return {"error": "Missing user_id in session state."}
 
-    # Read sub-agent results from state
+    # Read planner result from state (palette is now nested inside plan_result)
     plan_raw = state.get("plan_result", "")
-    palette_raw = state.get("palette_result", "")
 
     try:
         plan_data = _json.loads(plan_raw) if isinstance(plan_raw, str) else plan_raw
@@ -467,11 +476,13 @@ async def persist_plan(state: dict) -> dict:
     if not plan_data or not isinstance(plan_data, dict):
         return {"error": "No plan data found. Transfer to planner_agent first."}
 
-    palette_data = None
-    try:
-        palette_data = _json.loads(palette_raw) if isinstance(palette_raw, str) else palette_raw
-    except (_json.JSONDecodeError, TypeError):
-        pass  # palette is optional
+    # Palette lives inside plan_data now, fall back to legacy palette_result key
+    palette_data = plan_data.get("palette") or state.get("palette_result")
+    if isinstance(palette_data, str):
+        try:
+            palette_data = _json.loads(palette_data)
+        except (_json.JSONDecodeError, TypeError):
+            palette_data = None
 
     days_per_week = plan_data.get("days_per_week", 3)
     minutes_per_day = plan_data.get("minutes_per_day", 20)
@@ -606,7 +617,6 @@ async def persist_plan(state: dict) -> dict:
 
     # Clear consumed results so the safety net doesn't re-trigger
     state["plan_result"] = None
-    state["palette_result"] = None
 
     return {
         "status": "saved",
@@ -641,14 +651,13 @@ root_agent = LlmAgent(
     instruction="""You are Lattice, a friendly learning companion.
 
 ## User context
-Name: {user_name} | Timezone: {user_timezone} | Location: {user_city}, {user_state}, {user_country}
+Name: {user_name?} | Timezone: {user_timezone?} | Location: {user_city?}, {user_state?}, {user_country?}
 
 ## Critical workflow (follow these steps IN ORDER):
 1. Chat naturally to learn what skill they want, their goal, and how much time they have (days_per_week, minutes_per_day). Ask ONE question at a time.
-2. Once you have enough info, transfer to planner_agent. It will store structured plan data in session state automatically.
-3. Transfer to ui_agent with the skill name. It will store a color palette in session state automatically.
-4. You MUST call the save_complete_plan tool. This is REQUIRED — do NOT skip this step. The tool reads from session state, you do not need to pass arguments.
-5. After save_complete_plan succeeds, reply to the user with a short, excited summary of what they'll learn. Mention a few highlights from the roadmap.
+2. Once you have enough info, transfer to planner_agent. It will build the roadmap and a color palette, storing everything in session state automatically.
+3. You MUST call the save_complete_plan tool. This is REQUIRED — do NOT skip this step. The tool reads from session state, you do not need to pass arguments.
+4. After save_complete_plan succeeds, reply to the user with a short, excited summary of what they'll learn. Mention a few highlights from the roadmap.
 
 ## Rules
 - NEVER output JSON, structured data, or raw tool results to the user. Your responses must always be natural language.
@@ -657,5 +666,5 @@ Name: {user_name} | Timezone: {user_timezone} | Location: {user_city}, {user_sta
 - Don't ask about resource preferences or location unless they bring it up.
 """,
     tools=[save_complete_plan],
-    sub_agents=[planner_agent, researcher_agent, ui_agent],
+    sub_agents=[planner_agent, researcher_agent],
 )
