@@ -6,6 +6,7 @@ class AppColors {
   static const Color background = Color(0xFF070405);
   static const Color secondary = Color(0xFFFBFBF2);
   static const Color accent = Color(0xFF33658A); // light blue
+  static const Color activeTab = Color(0xFF89BBFE); // active toggle blue
 
   // Node status fill colors
   static const Color nodeNotStarted = Color(0xFF3A3A3A);

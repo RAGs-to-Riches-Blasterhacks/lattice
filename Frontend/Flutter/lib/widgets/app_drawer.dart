@@ -87,7 +87,7 @@ class AppDrawer extends StatelessWidget {
                           label: 'Profile',
                           onTap: () {
                             Navigator.pop(context);
-                            // TODO: navigate to profile
+                            Navigator.pushNamed(context, '/profile');
                           },
                         ),
                         const _DrawerDivider(),

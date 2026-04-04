@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lattice/screens/roadmap.dart';
+import 'package:lattice/screens/profile_screen.dart';
 import 'package:lattice/screens/settings_screen.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'screens/home_screen.dart';
@@ -31,6 +32,7 @@ class LatticeApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
       routes: {
+        '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
     );

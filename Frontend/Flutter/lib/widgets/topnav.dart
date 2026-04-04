@@ -53,7 +53,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           onPressed: () {
-            // TODO: Navigate to profile or show profile modal
+            Navigator.pushNamed(context, '/profile');
           },
         ),
         // Adding a little padding to the right so it doesn't hug the screen edge
