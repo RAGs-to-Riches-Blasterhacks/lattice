@@ -27,11 +27,12 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
       ),
       
       // Middle: Logo
-      title: Image.asset('assets/LOGO.png',
-      width: MediaQuery.sizeOf(context).width * 0.36, 
-        
-        // Ensures the image shrinks to fit the width without stretching
-        fit: BoxFit.contain, 
+      title: GestureDetector(
+        onTap: () => Navigator.popUntil(context, (route) => route.isFirst),
+        child: Image.asset('assets/LOGO.png',
+          width: MediaQuery.sizeOf(context).width * 0.36,
+          fit: BoxFit.contain,
+        ),
       ),
       
       
@@ -39,9 +40,9 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           icon: SvgPicture.asset(
-            'assets/Profile.svg', // Your actual file path
+            'assets/Profile.svg',
 
-            // This colorFilter safely applies your AppColors.secondary (white) 
+            // This colorFilter safely applies AppColors.secondary (white) 
             // to the SVG, just in case the original SVG is black or another color.
             colorFilter: const ColorFilter.mode(
               AppColors.secondary, 

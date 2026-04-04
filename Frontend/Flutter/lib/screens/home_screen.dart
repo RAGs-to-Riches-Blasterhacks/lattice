@@ -3,7 +3,7 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
-import 'package:lattice/widgets/plan_input_bar.dart';
+import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
 import '../widgets/plan_card.dart';
@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // GlobalKeys to measure the body Stack and the front card's render bounds.
   final GlobalKey _bodyStackKey = GlobalKey();
   final GlobalKey _frontCardKey = GlobalKey();
+  final GlobalKey<ChatOverlayState> _chatOverlayKey = GlobalKey<ChatOverlayState>();
 
   late List<int> _cardOrder;
 
@@ -43,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isFrontCardExpanded = false;
   // True once the overlay should animate to fill the screen.
   bool _overlayExpanded = false;
+  // True when plan-context chat is active. hides the full expanded card
+  // because ChatOverlay renders its own mini header.
+  bool _planChatActive = false;
   // The card's rect (in body Stack coordinates) captured at tap time.
   Rect _cardRect = Rect.zero;
   Size _bodySize = Size.zero;
@@ -136,7 +140,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _dismissExpandedCard() {
-    setState(() => _overlayExpanded = false);
+    setState(() {
+      _overlayExpanded = false;
+      _planChatActive = false;
+    });
     Future.delayed(const Duration(milliseconds: 380), () {
       if (mounted) setState(() => _isFrontCardExpanded = false);
     });
@@ -383,7 +390,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
 
-          // ── Expanding card overlay ──────────────────────────────────────────
+          // Expanding card overlay
+          // Starts at the front card's exact rect and animates to fill the body.
+          // When plan-chat is active the card collapses to a mini strip at top
           if (_isFrontCardExpanded && plans.isNotEmpty) ...[
             () {
               final frontPlan = plans[_cardOrder[0]];
@@ -394,34 +403,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 top: _overlayExpanded ? 0 : _cardRect.top,
                 left: _overlayExpanded ? 0 : _cardRect.left,
                 right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
-                bottom: _overlayExpanded ? 0 : overlayBottom,
+                bottom: _planChatActive
+                    ? (_bodySize.height > 0 ? _bodySize.height - 56 : 0)
+                    : (_overlayExpanded ? 0 : overlayBottom),
                 child: ClipRect(
-                  child: Container(
-                    color: Colors.transparent,
-                    child: SingleChildScrollView(
-                      physics: _overlayExpanded
-                          ? null
-                          : const NeverScrollableScrollPhysics(),
-                      child: PlanCard(
-                        title: frontPlan.skillName,
-                        description: frontPlan.description ?? '',
-                        cardColor: color,
-                        currentTask: frontPlan.currentNodeTitle ?? 'No active task',
-                        currentStep: frontPlan.completedNodeCount,
-                        totalSteps: frontPlan.nodeCount,
-                        nodeDescription: frontPlan.currentNodeDescription,
-                        resources: frontPlan.currentNodeResources,
-                        startExpanded: true,
-                        onTap: _dismissExpandedCard,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeInOut,
+                          opacity: _overlayExpanded ? 1.0 : 0.0,
+                          child: const ColoredBox(color: AppColors.background),
+                        ),
                       ),
-                    ),
+                      SingleChildScrollView(
+                        physics: _overlayExpanded
+                            ? null
+                            : const NeverScrollableScrollPhysics(),
+                        child: PlanCard(
+                          title: frontPlan.skillName,
+                          description: frontPlan.description ?? '',
+                          cardColor: color,
+                          currentTask: frontPlan.currentNodeTitle ?? 'No active task',
+                          currentStep: frontPlan.completedNodeCount,
+                          totalSteps: frontPlan.nodeCount,
+                          nodeDescription: frontPlan.currentNodeDescription,
+                          resources: frontPlan.currentNodeResources,
+                          startExpanded: true,
+                          onTap: _planChatActive
+                              ? () => _chatOverlayKey.currentState?.dismissChat()
+                              : _dismissExpandedCard,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
             }(),
           ],
 
-          const PlanInputBar(),
+          ChatOverlay(
+            key: _chatOverlayKey,
+            planTitle: (_isFrontCardExpanded && plans.isNotEmpty)
+                ? plans[_cardOrder[0]].skillName
+                : null,
+            planCardColor: (_isFrontCardExpanded && plans.isNotEmpty)
+                ? _defaultColors[_cardOrder[0] % _defaultColors.length]
+                : null,
+            onPlanChatStarted: () {
+              setState(() => _planChatActive = true);
+            },
+            onPlanChatDismissed: () {
+              setState(() => _planChatActive = false);
+            },
+          ),
         ],
       ),
     );
