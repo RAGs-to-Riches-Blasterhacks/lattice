@@ -6,6 +6,9 @@ class PlanCard extends StatefulWidget {
   final String description;
   final Color cardColor;
   final int streak;
+  final String currentTask;
+  final int currentStep;
+  final int totalSteps;
   // Controls the aspect ratio of the card when it is collapsed.
   // 1.0 = Perfect Square, 1.8 = Widescreen Rectangle, 2.0 = Very Wide Rectangle
   final double collapsedAspectRatio;
@@ -22,6 +25,9 @@ class PlanCard extends StatefulWidget {
     required this.description,
     required this.cardColor,
     this.streak = 0,
+    this.currentTask = '',
+    this.currentStep = 0,
+    this.totalSteps = 0,
     this.collapsedAspectRatio = 1.45,
     this.onTap,
     this.startExpanded = false,
@@ -118,18 +124,18 @@ class _PlanCardState extends State<PlanCard> {
               color: const Color(0xFF4A7C94),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Text('TODO:', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text('8/30', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
+                const Text('TODO:', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text('${widget.currentStep}/${widget.totalSteps}', style: const TextStyle(color: AppColors.secondary, fontSize: 12)),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Play a round of deathmatch',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.background),
+              widget.currentTask,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.background),
             ),
           ),
           Padding(

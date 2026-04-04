@@ -13,15 +13,18 @@ class _PlaceholderPlan {
   final String title;
   final String description;
   final Color color;
-  const _PlaceholderPlan(this.title, this.description, this.color);
+  final String currentTask;
+  final int currentStep;
+  final int totalSteps;
+  const _PlaceholderPlan(this.title, this.description, this.color, this.currentTask, this.currentStep, this.totalSteps);
 }
 
 const _placeholderPlans = [
-  _PlaceholderPlan('Learning Blender', 'Master 3D modeling, sculpting, and animation with hands-on projects.', Color(0xFF6A9F6B)),
-  _PlaceholderPlan('Building Computers', 'Learn to select components, assemble, and configure a custom PC.', Color(0xFF8FAFD4)),
-  _PlaceholderPlan('Meal Planning', 'Build weekly meal habits with balanced nutrition and prep strategies.', Color(0xFFE8A0B4)),
-  _PlaceholderPlan('Exercise Routine', 'Develop a consistent strength and cardio regimen tailored to your goals.', Color(0xFFF5F0E1)),
-  _PlaceholderPlan('Valorant Training', 'Improve aim, game sense, and agent mechanics through structured drills.', Color(0xFFBFA2DB)),
+  _PlaceholderPlan('Learning Blender', 'Master 3D modeling, sculpting, and animation with hands-on projects.', Color(0xFF6A9F6B), 'Follow donut tutorial part 3', 5, 20),
+  _PlaceholderPlan('Building Computers', 'Learn to select components, assemble, and configure a custom PC.', Color(0xFF8FAFD4), 'Research GPU benchmarks for budget', 3, 12),
+  _PlaceholderPlan('Meal Planning', 'Build weekly meal habits with balanced nutrition and prep strategies.', Color(0xFFE8A0B4), 'Prep Sunday batch cook list', 7, 15),
+  _PlaceholderPlan('Exercise Routine', 'Develop a consistent strength and cardio regimen tailored to your goals.', Color(0xFFF5F0E1), 'Complete upper body day A', 10, 24),
+  _PlaceholderPlan('Valorant Training', 'Improve aim, game sense, and agent mechanics through structured drills.', Color(0xFFBFA2DB), 'Play a round of deathmatch', 8, 30),
 ];
 
 class HomeScreen extends StatefulWidget {
@@ -192,6 +195,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           title: plan.title,
           description: plan.description,
           cardColor: plan.color,
+          currentTask: plan.currentTask,
+          currentStep: plan.currentStep,
+          totalSteps: plan.totalSteps,
           onTap: onTap,
         ),
       );
@@ -377,6 +383,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       title: _placeholderPlans[_cardOrder[0]].title,
                       description: _placeholderPlans[_cardOrder[0]].description,
                       cardColor: _placeholderPlans[_cardOrder[0]].color,
+                      currentTask: _placeholderPlans[_cardOrder[0]].currentTask,
+                      currentStep: _placeholderPlans[_cardOrder[0]].currentStep,
+                      totalSteps: _placeholderPlans[_cardOrder[0]].totalSteps,
                       startExpanded: true,
                       // Tapping the expanded card shrinks the overlay back.
                       onTap: _dismissExpandedCard,
