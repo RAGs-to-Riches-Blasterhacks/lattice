@@ -67,7 +67,8 @@ class SettingsScreen extends StatelessWidget {
                   onTap: (label) {
                     if (label == 'Log Out') {
                       context.read<AuthProvider>().logout();
-                      Navigator.of(context).popUntil((r) => r.isFirst);
+                      Navigator.of(context)
+                          .pushNamedAndRemoveUntil('/', (route) => false);
                     }
                   },
                 ),

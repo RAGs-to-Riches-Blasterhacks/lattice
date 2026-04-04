@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
+import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/chat_overlay.dart';
@@ -31,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _frontCardKey = GlobalKey();
   final GlobalKey<ChatOverlayState> _chatOverlayKey =
       GlobalKey<ChatOverlayState>();
+
+  int _currentStreak = 0;
 
   late List<int> _cardOrder;
 
@@ -79,9 +82,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 200),
     );
 
-    // Fetch plans when the screen loads
+    // Fetch plans and streak when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PlansProvider>().fetchPlans();
+      _loadStreak();
     });
   }
 
@@ -91,6 +95,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _shiftController.dispose();
     _reverseShiftController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadStreak() async {
+    try {
+      final streak = await context.read<ApiService>().getMyStreak();
+      if (mounted) setState(() => _currentStreak = streak.currentStreak);
+    } catch (_) {}
   }
 
   void _syncCardOrder(int planCount) {
@@ -199,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _onMarkComplete(String planId, String nodeId) async {
     final provider = context.read<PlansProvider>();
     await provider.markNodeComplete(planId, nodeId);
+    await _loadStreak();
   }
 
   Future<void> _onAddNote(String planId, String nodeId) async {
@@ -251,6 +263,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           title: plan.skillName,
           description: plan.description ?? '',
           cardColor: color,
+          streak: _currentStreak,
           currentTask: plan.currentNodeTitle ?? 'No active task',
           currentStep: plan.completedNodeCount,
           totalSteps: plan.nodeCount,
@@ -531,6 +544,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           title: frontPlan.skillName,
                           description: frontPlan.description ?? '',
                           cardColor: color,
+                          streak: _currentStreak,
                           currentTask:
                               frontPlan.currentNodeTitle ?? 'No active task',
                           currentStep: frontPlan.completedNodeCount,
