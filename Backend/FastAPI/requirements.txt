@@ -11,3 +11,6 @@ starlette==1.0.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.43.0
+motor>=3.6.0,<3.7.0
+beanie>=1.27.0,<2.0.0
+pydantic-settings>=2.8.0
