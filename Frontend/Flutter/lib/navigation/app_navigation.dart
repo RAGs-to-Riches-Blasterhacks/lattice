@@ -16,7 +16,7 @@ class AppNavigation {
     final Widget page = switch (settings.name) {
       profileRoute => const ProfileScreen(),
       settingsRoute => const SettingsScreen(),
-      roadmapRoute => const RoadmapScreen(),
+      roadmapRoute => RoadmapScreen(planId: settings.arguments as String?),
       _ => const HomeScreen(),
     };
 
@@ -58,8 +58,8 @@ class AppNavigation {
     return _replaceCurrent(context, settingsRoute);
   }
 
-  static Future<void> goToRoadmap(BuildContext context) {
-    return Navigator.of(context).pushNamed(roadmapRoute);
+  static Future<void> goToRoadmap(BuildContext context, {String? planId}) {
+    return Navigator.of(context).pushNamed(roadmapRoute, arguments: planId);
   }
 
   static Future<void> _replaceCurrent(BuildContext context, String routeName) {

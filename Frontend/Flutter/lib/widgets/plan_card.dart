@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/navigation/app_navigation.dart';
-import 'package:lattice/themes/app_colors.dart'; // Adjust path if needed
+import 'package:lattice/themes/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlanCard extends StatefulWidget {
+  final String? planId;
   final String title;
   final String description;
   final Color cardColor;
   final int streak;
+  final String currentTask;
+  final int currentStep;
+  final int totalSteps;
+  final String? nodeDescription;
+  final List<Resource> resources;
   // Controls the aspect ratio of the card when it is collapsed.
   // 1.0 = Perfect Square, 1.8 = Widescreen Rectangle, 2.0 = Very Wide Rectangle
   final double collapsedAspectRatio;
@@ -19,10 +27,16 @@ class PlanCard extends StatefulWidget {
 
   const PlanCard({
     super.key,
+    this.planId,
     required this.title,
     required this.description,
     required this.cardColor,
     this.streak = 0,
+    this.currentTask = '',
+    this.currentStep = 0,
+    this.totalSteps = 0,
+    this.nodeDescription,
+    this.resources = const [],
     this.collapsedAspectRatio = 1.45,
     this.onTap,
     this.startExpanded = false,
@@ -119,18 +133,18 @@ class _PlanCardState extends State<PlanCard> {
               color: const Color(0xFF4A7C94),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Text('TODO:', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text('8/30', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
+                const Text('TODO:', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text('${widget.currentStep + 1}/${widget.totalSteps}', style: const TextStyle(color: AppColors.secondary, fontSize: 12)),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Play a round of deathmatch',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.background),
+              widget.currentTask,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.background),
             ),
           ),
           Padding(
@@ -171,6 +185,64 @@ class _PlanCardState extends State<PlanCard> {
         ],
       ),
     );
+  }
+
+  Widget _buildResourcesCard(List<Resource> resources) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resources:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, decoration: TextDecoration.underline),
+          ),
+          const SizedBox(height: 8),
+          ...resources.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
+                child: GestureDetector(
+                  onTap: () => launchUrl(Uri.parse(r.url), mode: LaunchMode.externalApplication),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${_resourceIcon(r.type)} ', style: const TextStyle(fontSize: 16)),
+                      Expanded(
+                        child: Text(
+                          r.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  String _resourceIcon(ResourceType type) {
+    switch (type) {
+      case ResourceType.youtube:
+        return '▶';
+      case ResourceType.article:
+        return '📄';
+      case ResourceType.book:
+        return '📖';
+      case ResourceType.exercise:
+        return '💪';
+      case ResourceType.event:
+        return '📅';
+    }
   }
 
   // ─── COLLAPSED STATE (List View) ──────────────────────────────────────────
@@ -238,22 +310,15 @@ class _PlanCardState extends State<PlanCard> {
         
         const SizedBox(height: 16),
 
-        _buildInfoCard(
-          title: 'What To Do:',
-          items: [
-            'Focus on cross-hair placement',
-            'Attempt counter strafing techniques learned from task 7/30',
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        _buildInfoCard(
-          title: 'Resources:',
-          items: [
-            'YouTube: Counter Strafing',
-            'Event: School of Mines Esports Valorant Championship',
-          ],
-        ),
+        if (widget.nodeDescription != null && widget.nodeDescription!.isNotEmpty)
+          _buildInfoCard(
+            title: 'What To Do:',
+            items: [widget.nodeDescription!],
+          ),
+        if (widget.resources.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildResourcesCard(widget.resources),
+        ],
         const SizedBox(height: 24),
 
         Center(
@@ -282,7 +347,7 @@ class _PlanCardState extends State<PlanCard> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    AppNavigation.goToRoadmap(context);
+                    AppNavigation.goToRoadmap(context, planId: widget.planId);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B5B73),

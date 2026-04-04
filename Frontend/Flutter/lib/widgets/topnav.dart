@@ -23,10 +23,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
       leading: IconButton(
         icon: const Icon(Icons.menu),
         iconSize: MediaQuery.sizeOf(context).width * 0.09,
-        
-        onPressed: () {
-          Scaffold.of(context).openDrawer();
-        },
+        onPressed: () => Scaffold.of(context).openDrawer(),
       ),
       
       // Middle: Logo

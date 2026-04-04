@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/models/chat_message.dart';
+import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:provider/provider.dart';
 
 /// A full-screen chat overlay + input bar meant to sit inside a Stack.
 ///
@@ -16,6 +18,7 @@ import 'package:lattice/themes/app_colors.dart';
 /// dismisses the chat and re-opens the card (via [onPlanChatDismissed]).
 class ChatOverlay extends StatefulWidget {
   final String? planTitle;
+  final String? planId;
   final Color? planCardColor;
 
   /// Called when the user dismisses the plan-context chat (handle drag or
@@ -26,12 +29,18 @@ class ChatOverlay extends StatefulWidget {
   /// The parent should collapse the expanded PlanCard overlay to a mini strip.
   final VoidCallback? onPlanChatStarted;
 
+  /// Called when the agent creates a new plan during conversation.
+  /// The parent should refresh the plans list.
+  final VoidCallback? onPlanCreated;
+
   const ChatOverlay({
     super.key,
     this.planTitle,
+    this.planId,
     this.planCardColor,
     this.onPlanChatDismissed,
     this.onPlanChatStarted,
+    this.onPlanCreated,
   });
 
   @override
@@ -53,6 +62,9 @@ class ChatOverlayState extends State<ChatOverlay>
   late AnimationController _planChatAnim;
   late Animation<Offset> _planChatSlide;
   late Animation<double> _planChatFade;
+
+  String? _conversationId;
+  bool _awaitingResponse = false;
 
   bool get _chatActive => _messages.isNotEmpty;
   bool get _inPlanContext =>
@@ -91,7 +103,12 @@ class ChatOverlayState extends State<ChatOverlay>
     if (oldWidget.planTitle != null && widget.planTitle == null && _chatActive) {
       _planChatAnim.reverse();
       _overlayAnim.reverse().then((_) {
-        if (mounted) setState(() => _messages.clear());
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _conversationId = null;
+          });
+        }
       });
     }
   }
@@ -106,14 +123,16 @@ class ChatOverlayState extends State<ChatOverlay>
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _awaitingResponse) return;
 
+    final api = context.read<ApiService>();
     final isFirstMessage = _messages.isEmpty;
 
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
+      _awaitingResponse = true;
     });
     _controller.clear();
 
@@ -128,18 +147,66 @@ class ChatOverlayState extends State<ChatOverlay>
 
     _scrollToBottom();
 
-    // Placeholder: simulate an agent response after a short delay.
-    // Your backend teammate will replace this with the real agent call.
-    Future.delayed(const Duration(milliseconds: 800), () {
+    try {
+      // Create a conversation on the first message.
+      if (_conversationId == null) {
+        final planId = _inPlanContext ? widget.planId : null;
+        final conv = await api.createConversation(planId: planId);
+        _conversationId = conv.id;
+      }
+
+      // Send the user's message and get the agent response.
+      final conv = await api.sendMessage(
+        _conversationId!,
+        content: text,
+      );
+
+      if (!mounted) return;
+
+      // The backend appends the assistant reply as the last message.
+      final lastMsg = conv.messages.last;
+      if (lastMsg.role == 'assistant') {
+        setState(() {
+          _messages.add(ChatMessage(
+            text: lastMsg.content,
+            isUser: false,
+            timestamp: lastMsg.timestamp,
+          ));
+        });
+
+        // If the agent created a plan, start a new conversation tied to it
+        // so subsequent messages go through the plan-updater agent.
+        if (lastMsg.metadata != null &&
+            lastMsg.metadata!.containsKey('plan_id')) {
+          final newPlanId = lastMsg.metadata!['plan_id'] as String;
+          final planConv = await api.createConversation(planId: newPlanId);
+          _conversationId = planConv.id;
+          widget.onPlanCreated?.call();
+        }
+      }
+    } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
         _messages.add(ChatMessage(
-          text: 'Got it! Let me think about that...',
+          text: 'Error: ${e.message}',
           isUser: false,
         ));
       });
-      _scrollToBottom();
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          text: 'Something went wrong. Please try again.',
+          isUser: false,
+        ));
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _awaitingResponse = false);
+      }
+    }
+
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -161,6 +228,7 @@ class ChatOverlayState extends State<ChatOverlay>
           setState(() {
             _messages.clear();
             _handleDragDy = 0;
+            _conversationId = null;
           });
         }
       });
@@ -171,6 +239,7 @@ class ChatOverlayState extends State<ChatOverlay>
           setState(() {
             _messages.clear();
             _handleDragDy = 0;
+            _conversationId = null;
           });
         }
       });
@@ -285,7 +354,55 @@ class ChatOverlayState extends State<ChatOverlay>
     );
   }
 
-  // Drag handle 
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              'assets/CircleLogo.png',
+              width: 36,
+              height: 36,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: const SizedBox(
+              width: 40,
+              height: 20,
+              child: Center(
+                child: Text(
+                  '...',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 18,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Drag handle
 
   Widget _buildDragHandle() {
     return GestureDetector(
@@ -359,9 +476,11 @@ class ChatOverlayState extends State<ChatOverlay>
                           controller: _scrollController,
                           padding:
                               const EdgeInsets.only(top: 8, bottom: 12),
-                          itemCount: _messages.length,
-                          itemBuilder: (_, i) =>
-                              _buildBubble(_messages[i]),
+                          itemCount: _messages.length + (_awaitingResponse ? 1 : 0),
+                          itemBuilder: (_, i) {
+                            if (i == _messages.length) return _buildTypingIndicator();
+                            return _buildBubble(_messages[i]);
+                          },
                         ),
                       ),
                     ],
@@ -385,8 +504,11 @@ class ChatOverlayState extends State<ChatOverlay>
                   ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(top: 60, bottom: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) => _buildBubble(_messages[i]),
+                    itemCount: _messages.length + (_awaitingResponse ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (i == _messages.length) return _buildTypingIndicator();
+                      return _buildBubble(_messages[i]);
+                    },
                   ),
                   // Gradient ombre at top
                   Positioned(
@@ -469,15 +591,25 @@ class ChatOverlayState extends State<ChatOverlay>
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _sendMessage,
+                  onTap: _awaitingResponse ? null : _sendMessage,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withValues(alpha: 0.2),
+                      color: AppColors.textPrimary.withValues(
+                          alpha: _awaitingResponse ? 0.1 : 0.2),
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(6),
-                    child: const Icon(Icons.arrow_upward,
-                        color: AppColors.textPrimary, size: 18),
+                    child: _awaitingResponse
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : const Icon(Icons.arrow_upward,
+                            color: AppColors.textPrimary, size: 18),
                   ),
                 ),
               ],
