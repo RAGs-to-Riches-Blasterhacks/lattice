@@ -37,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'DisplayName\'s Profile', // add user's display name here!
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 40,
+                    fontSize: 32,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
