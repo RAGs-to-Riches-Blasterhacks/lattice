@@ -188,6 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: PlanCard(
           key: key,
+          planId: plan.id,
           title: plan.skillName,
           description: plan.description ?? '',
           cardColor: color,
@@ -425,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ? null
                             : const NeverScrollableScrollPhysics(),
                         child: PlanCard(
+                          planId: frontPlan.id,
                           title: frontPlan.skillName,
                           description: frontPlan.description ?? '',
                           cardColor: color,

@@ -4,6 +4,7 @@ import 'package:lattice/themes/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlanCard extends StatefulWidget {
+  final String? planId;
   final String title;
   final String description;
   final Color cardColor;
@@ -25,6 +26,7 @@ class PlanCard extends StatefulWidget {
 
   const PlanCard({
     super.key,
+    this.planId,
     required this.title,
     required this.description,
     required this.cardColor,
@@ -344,7 +346,7 @@ class _PlanCardState extends State<PlanCard> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/roadmap');
+                    Navigator.pushNamed(context, '/roadmap', arguments: widget.planId);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B5B73),
