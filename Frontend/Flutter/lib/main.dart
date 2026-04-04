@@ -4,7 +4,7 @@ import 'package:lattice/screens/roadmap.dart';
 import 'package:lattice/screens/profile_screen.dart';
 import 'package:lattice/screens/settings_screen.dart';
 import 'package:lattice/themes/app_colors.dart';
-import 'screens/home_screen.dart';
+import 'screens/landing_screen.dart';
 
 void main() {
   runApp(const LatticeApp());
@@ -30,7 +30,7 @@ class LatticeApp extends StatelessWidget {
           ThemeData.dark().textTheme,
         ),
       ),
-      home: const HomeScreen(),
+      home: const LandingScreen(),
       routes: {
         '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
