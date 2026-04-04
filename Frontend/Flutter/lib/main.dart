@@ -34,6 +34,7 @@ class LatticeApp extends StatelessWidget {
       routes: {
         '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/roadmap': (context) => const RoadmapScreen(),
       },
     );
   }

@@ -371,20 +371,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ? (_bodySize.height > 0 ? _bodySize.height - 56 : 0)
                   : (_overlayExpanded ? 0 : overlayBottom),
               child: ClipRect(
-                child: Container(
-                  color: Colors.transparent,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: PlanCard(
-                      title: _placeholderPlans[_cardOrder[0]].title,
-                      description: _placeholderPlans[_cardOrder[0]].description,
-                      cardColor: _placeholderPlans[_cardOrder[0]].color,
-                      startExpanded: true,
-                      onTap: _planChatActive
+                child: Stack(
+                  children: [
+                    // Background fades in separately from the card content.
+                    Positioned.fill(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeInOut,
+                        opacity: _overlayExpanded ? 1.0 : 0.0,
+                        child: const ColoredBox(color: AppColors.background),
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      // Disable scrolling while the overlay is animating.
+                      physics: _overlayExpanded
+                          ? null
+                          : const NeverScrollableScrollPhysics(),
+                      child: PlanCard(
+                        title: _placeholderPlans[_cardOrder[0]].title,
+                        description: _placeholderPlans[_cardOrder[0]].description,
+                        cardColor: _placeholderPlans[_cardOrder[0]].color,
+                        startExpanded: true,
+                        // Tapping the expanded card shrinks the overlay back.
+                        onTap: _planChatActive
                           ? () => _chatOverlayKey.currentState?.dismissChat()
                           : _dismissExpandedCard,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

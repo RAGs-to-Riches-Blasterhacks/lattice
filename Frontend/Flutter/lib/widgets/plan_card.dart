@@ -281,7 +281,7 @@ class _PlanCardState extends State<PlanCard> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigation logic here
+                    Navigator.pushNamed(context, '/roadmap');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B5B73),
