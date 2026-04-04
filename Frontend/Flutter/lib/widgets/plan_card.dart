@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart'; // Adjust path if needed
 
 class PlanCard extends StatefulWidget {
@@ -68,7 +69,7 @@ class _PlanCardState extends State<PlanCard> {
           borderRadius: BorderRadius.circular(20.0),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -281,7 +282,7 @@ class _PlanCardState extends State<PlanCard> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/roadmap');
+                    AppNavigation.goToRoadmap(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B5B73),
