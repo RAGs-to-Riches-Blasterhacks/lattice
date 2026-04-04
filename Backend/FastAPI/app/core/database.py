@@ -1,9 +1,16 @@
 from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.core.config import settings
 
 _client: AsyncIOMotorClient | None = None
+
+
+def get_db() -> AsyncIOMotorDatabase:
+    """Return the Motor database instance. Available after init_db() has run."""
+    if _client is None:
+        raise RuntimeError("Database not initialised — call init_db() first")
+    return _client[settings.MONGO_DB_NAME]
 
 
 async def init_db() -> None:

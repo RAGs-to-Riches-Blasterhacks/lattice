@@ -113,6 +113,34 @@ class SuccessLevels(BaseModel):
     should_know_next: list[str] = Field(default_factory=list)
 
 
+# --- Palette ---
+
+
+class PaletteColor(BaseModel):
+    role: str  # primary, secondary, accent, background, text
+    hex: str
+    name: str
+    rationale: str = ""
+
+
+class ContrastCheck(BaseModel):
+    pair: str = ""  # e.g. "text_on_background", "primary_on_background"
+    contrast_ratio: float = 0.0
+    meets_aa: bool = False
+    meets_aaa: bool = False
+
+
+class PaletteAccessibility(BaseModel):
+    checks: list[ContrastCheck] = Field(default_factory=list)
+    notes: str = ""
+
+
+class Palette(BaseModel):
+    theme: str = ""
+    colors: list[PaletteColor] = Field(default_factory=list)
+    accessibility: Optional[PaletteAccessibility] = None
+
+
 # --- Top-level Document ---
 
 
@@ -127,6 +155,7 @@ class Plan(Document):
     nodes: list[PlanNode] = Field(default_factory=list)
     branches: list[Branch] = Field(default_factory=list)
     active_branch_id: str
+    palette: Optional[Palette] = None
     status: PlanStatus = PlanStatus.active
     current_node_id: Optional[str] = None
     generation_version: int = 1
