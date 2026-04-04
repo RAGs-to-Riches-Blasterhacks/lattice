@@ -98,9 +98,9 @@ def _derive_plan_stats(plan: Plan | None) -> tuple[str, int, int]:
 async def get_friend_info(friend_user: User) -> dict:
     """Build friend info dict for a single user."""
     streak = await Streak.find_one(Streak.user_id == friend_user.id)
-    plan = await Plan.find_one(
+    plan = await Plan.find(
         Plan.user_id == friend_user.id, Plan.status == PlanStatus.active
-    ).sort(-Plan.updated_at)
+    ).sort(-Plan.updated_at).first_or_none()
 
     current_task, completed_days, total_days = _derive_plan_stats(plan)
     handle = "@" + friend_user.display_name.lower().replace(" ", "")
