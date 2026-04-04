@@ -16,10 +16,20 @@ async def get_current_user(
 
     try:
         decoded = firebase_auth.verify_id_token(creds.credentials)
-    except Exception:
+    except firebase_auth.InvalidIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+        )
+    except firebase_auth.ExpiredIdTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
         )
 
     user = await User.find_one(User.firebase_uid == decoded["uid"])
