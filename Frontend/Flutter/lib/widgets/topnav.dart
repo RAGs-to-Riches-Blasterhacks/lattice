@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 // Note: Make sure to import your AppColors file here.
 import '../themes/app_colors.dart';
 
-import 'package:flutter/src/widgets/image.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -26,7 +25,8 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
         iconSize: MediaQuery.sizeOf(context).width * 0.09,
         
         onPressed: () {
-          Scaffold.of(context).openDrawer();
+          // TODO: Open drawer or handle menu tap
+          // Scaffold.of(context).openDrawer();
         },
       ),
       
@@ -53,7 +53,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           onPressed: () {
-            Navigator.pushNamed(context, '/profile');
+            // TODO: Navigate to profile or show profile modal
           },
         ),
         // Adding a little padding to the right so it doesn't hug the screen edge
