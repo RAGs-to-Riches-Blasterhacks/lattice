@@ -3,6 +3,7 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/branch_junction_widget.dart';
+import 'package:lattice/widgets/node_detail_sheet.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/topnav.dart';
@@ -77,6 +78,29 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
 
   void _switchBranch(String branchId) {
     setState(() => _activeBranchId = branchId);
+  }
+
+  void _showNodeDetail(PlanNode node) {
+    final planId = widget.planId;
+    if (planId == null) return;
+    final provider = context.read<PlansProvider>();
+
+    NodeDetailSheet.show(
+      context,
+      node: node,
+      onStatusChange: (status) async {
+        await provider.logProgress(
+          planId,
+          node.nodeId,
+          status: status,
+        );
+        await _loadPlan();
+      },
+      onAddNote: (content) async {
+        await provider.addNote(planId, node.nodeId, content);
+        await _loadPlan();
+      },
+    );
   }
 
   List<_RoadmapItem> _buildItems(Plan plan) {
@@ -176,8 +200,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             )
           : _plan == null
               ? const Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.accent),
+                  child: CircularProgressIndicator(color: AppColors.accent),
                 )
               : _buildList(_plan!),
     );
@@ -199,6 +222,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 node: node,
                 isLast: i == items.length - 1,
                 displayNumber: i + 1,
+                onTap: () => _showNodeDetail(node),
               ),
             _BranchJunctionItem(:final branch, :final firstNode) =>
               BranchJunctionWidget(
