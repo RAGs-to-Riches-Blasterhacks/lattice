@@ -78,7 +78,7 @@ class AppDrawer extends StatelessWidget {
                           label: 'Home',
                           onTap: () {
                             Navigator.pop(context);
-                            // TODO: navigate to home
+                            Navigator.of(context).popUntil((r) => r.isFirst);
                           },
                         ),
                         const _DrawerDivider(),
