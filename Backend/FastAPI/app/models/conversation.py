@@ -12,6 +12,8 @@ class MessageRole(str, Enum):
     assistant = "assistant"
     system = "system"
 
+
+
 class Message(BaseModel):
     role: MessageRole
     content: str

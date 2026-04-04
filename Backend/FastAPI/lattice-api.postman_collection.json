@@ -1,0 +1,419 @@
+{
+	"info": {
+		"name": "Lattice API",
+		"description": "Lattice skill-building app backend API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000"
+		},
+		{
+			"key": "auth_token",
+			"value": ""
+		},
+		{
+			"key": "plan_id",
+			"value": ""
+		},
+		{
+			"key": "node_id",
+			"value": ""
+		},
+		{
+			"key": "conv_id",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201 || pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('auth_token', json.id_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"securepassword123\",\n    \"display_name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('auth_token', json.id_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"securepassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "OAuth Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('auth_token', json.id_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id_token\": \"your-google-or-apple-id-token\",\n    \"provider\": \"google\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/oauth",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "oauth"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Plans",
+			"item": [
+				{
+					"name": "Create Plan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('plan_id', json.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"skill_name\": \"Learn Python\",\n    \"description\": \"Go from beginner to intermediate Python\",\n    \"success_levels\": {\n        \"should_know\": [\"Write functions and classes\", \"Use standard library\"],\n        \"might_know\": [\"Async programming\", \"Decorators\"],\n        \"should_know_next\": [\"Web frameworks\", \"Data science basics\"]\n    },\n    \"days_per_week\": 5,\n    \"minutes_per_day\": 30,\n    \"toggles\": {\n        \"include_books\": false,\n        \"include_extra_homework\": false,\n        \"include_local_events\": false,\n        \"include_youtube\": true,\n        \"include_articles\": true\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/plans",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans"]
+						}
+					}
+				},
+				{
+					"name": "List Plans",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/plans",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans"]
+						}
+					}
+				},
+				{
+					"name": "Get Plan",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Active Path",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}/path",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}", "path"]
+						}
+					}
+				},
+				{
+					"name": "Edit Node",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Learn Iteration Instead\",\n    \"description\": \"Updated node description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}/nodes/{{node_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}", "nodes", "{{node_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Switch Branch",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"branch_id\": \"target-branch-uuid\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}/switch-branch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}", "switch-branch"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Conversations",
+			"item": [
+				{
+					"name": "Create Conversation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('conv_id', json.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/conversations?plan_id={{plan_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversations"],
+							"query": [
+								{ "key": "plan_id", "value": "{{plan_id}}" }
+							]
+						}
+					}
+				},
+				{
+					"name": "List Conversations",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/conversations?active_only=true",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversations"],
+							"query": [
+								{ "key": "active_only", "value": "true" },
+								{ "key": "plan_id", "value": "", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Conversation",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/conversations/{{conv_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversations", "{{conv_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"user\",\n    \"content\": \"I want to learn Python starting from the basics\",\n    \"metadata\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/conversations/{{conv_id}}/messages",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversations", "{{conv_id}}", "messages"]
+						}
+					}
+				},
+				{
+					"name": "Complete Conversation",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/conversations/{{conv_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conversations", "{{conv_id}}", "complete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Streaks",
+			"item": [
+				{
+					"name": "Get My Streak",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/streaks/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "streaks", "me"]
+						}
+					}
+				},
+				{
+					"name": "Check In",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"plan_id\": \"{{plan_id}}\",\n    \"node_id\": \"{{node_id}}\",\n    \"note\": \"Studied for 30 minutes today\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/streaks/check-in",
+							"host": ["{{base_url}}"],
+							"path": ["api", "streaks", "check-in"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me"]
+						}
+					}
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"display_name\": \"Kade\",\n    \"timezone\": \"America/New_York\",\n    \"location\": {\n        \"opted_in\": true,\n        \"city\": \"New York\",\n        \"state\": \"NY\",\n        \"country\": \"US\"\n    },\n    \"notifications\": {\n        \"push_enabled\": true,\n        \"email_enabled\": false,\n        \"reminder_time\": \"09:00\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"request": {
+				"auth": { "type": "noauth" },
+				"method": "GET",
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				}
+			}
+		}
+	]
+}

@@ -21,5 +21,7 @@ class OAuthTokenRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    custom_token: str  # Firebase custom token — Flutter uses this to sign in
+    id_token: str  # Firebase ID token — use as Bearer token for authenticated requests
+    refresh_token: str  # Firebase refresh token — use to get a new id_token when it expires
+    custom_token: str  # Firebase custom token — Flutter uses this with signInWithCustomToken()
     user: UserResponse

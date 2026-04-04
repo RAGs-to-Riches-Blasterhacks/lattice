@@ -33,7 +33,7 @@ def _user_response(user) -> UserResponse:
 async def register(body: EmailRegisterRequest):
     """Create a new account with email and password."""
     try:
-        custom_token, user = await auth_service.register_email(
+        tokens, user = await auth_service.register_email(
             email=body.email,
             password=body.password,
             display_name=body.display_name,
@@ -41,21 +41,21 @@ async def register(body: EmailRegisterRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return AuthResponse(custom_token=custom_token, user=_user_response(user))
+    return AuthResponse(**tokens, user=_user_response(user))
 
 
 @router.post("/login", response_model=AuthResponse)
 async def login(body: EmailLoginRequest):
     """Sign in with email and password."""
     try:
-        custom_token, user = await auth_service.login_email(
+        tokens, user = await auth_service.login_email(
             email=body.email,
             password=body.password,
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
-    return AuthResponse(custom_token=custom_token, user=_user_response(user))
+    return AuthResponse(**tokens, user=_user_response(user))
 
 
 @router.post("/oauth", response_model=AuthResponse)
@@ -65,11 +65,11 @@ async def oauth_login(body: OAuthTokenRequest):
         raise HTTPException(status_code=400, detail="Provider must be 'google' or 'apple'")
 
     try:
-        custom_token, user = await auth_service.login_oauth(
+        tokens, user = await auth_service.login_oauth(
             id_token=body.id_token,
             provider=body.provider,
         )
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
 
-    return AuthResponse(custom_token=custom_token, user=_user_response(user))
+    return AuthResponse(**tokens, user=_user_response(user))

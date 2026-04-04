@@ -193,16 +193,57 @@ When a user checks in:
 
 ## Auth
 
-Users authenticate via **Firebase Auth**. The `User` document stores `firebase_uid` and `email` from Firebase — no passwords are stored in MongoDB. Auth middleware (not yet implemented) will validate Firebase ID tokens on incoming requests and resolve the corresponding `User` document.
+Users authenticate via **Firebase Auth**. The `User` document stores `firebase_uid` and `email` from Firebase — no passwords are stored in MongoDB. The `get_current_user` dependency (`app/core/security.py`) validates Firebase ID tokens on incoming requests and resolves the corresponding `User` document.
+
+All auth endpoints return three tokens:
+
+| Token | Purpose |
+|---|---|
+| `id_token` | Firebase ID token (JWT) — use as `Bearer` token for authenticated API requests |
+| `refresh_token` | Use to obtain a new `id_token` when the current one expires |
+| `custom_token` | For Flutter SDK — pass to `signInWithCustomToken()` |
 
 ## APIs
 
-┌─────────────────────────┬───────────────────────────────────┐
-│        Endpoint         │              Purpose              │
-├─────────────────────────┼───────────────────────────────────┤
-│ POST /api/auth/register │ Create account (email + password) │
-├─────────────────────────┼───────────────────────────────────┤
-│ POST /api/auth/login    │ Sign in (email + password)        │
-├─────────────────────────┼───────────────────────────────────┤
-│ POST /api/auth/oauth    │ Exchange Google/Apple token       │
-└─────────────────────────┴───────────────────────────────────┘
+### Auth
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/auth/register` | Create account (email + password) |
+| POST | `/api/auth/login` | Sign in (email + password) |
+| POST | `/api/auth/oauth` | Exchange Google/Apple token |
+
+### Plans
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/plans` | Create a new learning plan |
+| GET | `/api/plans` | List current user's plans (summary) |
+| GET | `/api/plans/{id}` | Get full plan with all nodes and branches |
+| GET | `/api/plans/{id}/path` | Resolve active branch's node sequence |
+| PATCH | `/api/plans/{id}/nodes/{node_id}` | Edit a node (auto-branches on core changes) |
+| POST | `/api/plans/{id}/switch-branch` | Switch the active branch |
+
+### Conversations
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/conversations` | Start a new conversation (optionally tied to a plan) |
+| GET | `/api/conversations` | List conversations (filter by `plan_id`, `active_only`) |
+| GET | `/api/conversations/{id}` | Get conversation with full message history |
+| POST | `/api/conversations/{id}/messages` | Send a message (ADK agent integration point) |
+| POST | `/api/conversations/{id}/complete` | Close conversation (starts 60-day TTL) |
+
+### Streaks
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/streaks/me` | Get current user's streak stats |
+| POST | `/api/streaks/check-in` | Log activity on a node + update global streak |
+
+### Users
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/users/me` | Get current user's profile |
+| PATCH | `/api/users/me` | Update profile (display name, timezone, location, notifications) |

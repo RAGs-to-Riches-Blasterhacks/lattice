@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.models.conversation import ConversationPurpose, MessageRole
+from app.models.conversation import MessageRole
 
 
 class MessageCreate(BaseModel):
@@ -23,7 +23,6 @@ class ConversationResponse(BaseModel):
     id: str
     user_id: str
     plan_id: Optional[str] = None
-    purpose: ConversationPurpose
     messages: list[MessageResponse]
     is_active: bool
     created_at: datetime

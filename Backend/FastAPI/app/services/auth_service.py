@@ -7,14 +7,30 @@ from app.core.config import settings
 from app.core.firebase import get_firebase_app
 from app.models.user import User
 
-# Firebase REST API endpoint for email/password sign-in
+# Firebase REST API endpoints
 _FIREBASE_SIGN_IN_URL = (
     "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 )
+_FIREBASE_CUSTOM_TOKEN_URL = (
+    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken"
+)
 
 
-async def register_email(email: str, password: str, display_name: str) -> tuple[str, User]:
-    """Create a Firebase user, persist to MongoDB, return (custom_token, user)."""
+async def _exchange_custom_token(custom_token: str) -> dict:
+    """Exchange a custom token for an ID token + refresh token via Firebase REST API."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            _FIREBASE_CUSTOM_TOKEN_URL,
+            params={"key": settings.FIREBASE_API_KEY},
+            json={"token": custom_token, "returnSecureToken": True},
+        )
+    if resp.status_code != 200:
+        raise ValueError("Failed to exchange custom token")
+    return resp.json()
+
+
+async def register_email(email: str, password: str, display_name: str) -> tuple[dict, User]:
+    """Create a Firebase user, persist to MongoDB, return (tokens, user)."""
     get_firebase_app()
 
     # Create the user in Firebase
@@ -32,13 +48,19 @@ async def register_email(email: str, password: str, display_name: str) -> tuple[
     )
     await user.insert()
 
-    # Generate a custom token for the Flutter client
+    # Generate a custom token, then exchange it for an ID token
     custom_token = firebase_auth.create_custom_token(fb_user.uid).decode("utf-8")
-    return custom_token, user
+    exchange = await _exchange_custom_token(custom_token)
+
+    return {
+        "id_token": exchange["idToken"],
+        "refresh_token": exchange["refreshToken"],
+        "custom_token": custom_token,
+    }, user
 
 
-async def login_email(email: str, password: str) -> tuple[str, User]:
-    """Verify email/password via Firebase REST API, return (custom_token, user)."""
+async def login_email(email: str, password: str) -> tuple[dict, User]:
+    """Verify email/password via Firebase REST API, return (tokens, user)."""
     get_firebase_app()
 
     # Firebase Admin SDK has no server-side password verification,
@@ -58,7 +80,8 @@ async def login_email(email: str, password: str) -> tuple[str, User]:
         error_msg = resp.json().get("error", {}).get("message", "Authentication failed")
         raise ValueError(error_msg)
 
-    firebase_uid = resp.json()["localId"]
+    data = resp.json()
+    firebase_uid = data["localId"]
 
     # Find or fail — user must exist in MongoDB
     user = await User.find_one(User.firebase_uid == firebase_uid)
@@ -69,12 +92,18 @@ async def login_email(email: str, password: str) -> tuple[str, User]:
     user.last_login = datetime.utcnow()
     await user.save()
 
+    # REST API already gave us the ID token; also generate a custom token for Flutter
     custom_token = firebase_auth.create_custom_token(firebase_uid).decode("utf-8")
-    return custom_token, user
+
+    return {
+        "id_token": data["idToken"],
+        "refresh_token": data["refreshToken"],
+        "custom_token": custom_token,
+    }, user
 
 
-async def login_oauth(id_token: str, provider: str) -> tuple[str, User]:
-    """Verify an OAuth ID token (Google/Apple), create user if needed, return (custom_token, user)."""
+async def login_oauth(id_token: str, provider: str) -> tuple[dict, User]:
+    """Verify an OAuth ID token (Google/Apple), create user if needed, return (tokens, user)."""
     get_firebase_app()
 
     # Verify the token Firebase issued after Google/Apple sign-in
@@ -96,5 +125,12 @@ async def login_oauth(id_token: str, provider: str) -> tuple[str, User]:
         user.last_login = datetime.utcnow()
         await user.save()
 
+    # Generate custom token and exchange for a fresh ID token
     custom_token = firebase_auth.create_custom_token(firebase_uid).decode("utf-8")
-    return custom_token, user
+    exchange = await _exchange_custom_token(custom_token)
+
+    return {
+        "id_token": exchange["idToken"],
+        "refresh_token": exchange["refreshToken"],
+        "custom_token": custom_token,
+    }, user
