@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from beanie import Document, Indexed
+from beanie import Document, Indexed, PydanticObjectId
 from pydantic import BaseModel, Field
 
 
@@ -29,6 +29,8 @@ class User(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
+    friend_code: Indexed(str, unique=True, sparse=True) = None
+    friends: list[PydanticObjectId] = Field(default_factory=list)
     is_active: bool = True
 
     class Settings:

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:lattice/themes/app_colors.dart';
 
 class ProfileSocialScreen extends StatefulWidget {
@@ -96,6 +98,20 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
       SnackBar(
         content: Text('$name removed from friends'),
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _openQrScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => _QrScannerScreen(
+          onCodeScanned: (code) {
+            Navigator.of(context).pop();
+            _friendCodeController.text = code;
+            _submitFriendCode();
+          },
+        ),
       ),
     );
   }
@@ -251,87 +267,40 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: 64,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 8,
-                          crossAxisSpacing: 4,
-                          mainAxisSpacing: 4,
-                        ),
-                        itemBuilder: (context, index) {
-                          final bool isFilled = <int>{
-                            0,
-                            1,
-                            2,
-                            8,
-                            10,
-                            16,
-                            18,
-                            20,
-                            27,
-                            28,
-                            29,
-                            35,
-                            37,
-                            40,
-                            42,
-                            45,
-                            48,
-                            49,
-                            50,
-                            58,
-                            61,
-                            62,
-                          }.contains(index);
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: isFilled
-                                  ? AppColors.textPrimary
-                                  : AppColors.textPrimary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.background.withValues(alpha: 0.82),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: AppColors.cardBorder),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.qr_code_scanner_rounded,
-                            color: AppColors.activeTab,
-                            size: 18,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'QR placeholder',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.all(18),
+                child: QrImageView(
+                  data: _myFriendCode,
+                  version: QrVersions.auto,
+                  size: 174,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.circle,
+                    color: AppColors.textPrimary,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.circle,
+                    color: AppColors.textPrimary,
+                  ),
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openQrScanner,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.activeTab,
+                  side: const BorderSide(color: AppColors.activeTab),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                label: const Text(
+                  'Scan QR Code',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -815,6 +784,92 @@ class _StatPill extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QrScannerScreen extends StatefulWidget {
+  const _QrScannerScreen({required this.onCodeScanned});
+
+  final ValueChanged<String> onCodeScanned;
+
+  @override
+  State<_QrScannerScreen> createState() => _QrScannerScreenState();
+}
+
+class _QrScannerScreenState extends State<_QrScannerScreen> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _hasScanned = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.textPrimary,
+        title: const Text('Scan Friend Code'),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: (capture) {
+              if (_hasScanned) return;
+              final barcode = capture.barcodes.firstOrNull;
+              if (barcode == null) return;
+              final code = barcode.rawValue;
+              if (code != null && code.toUpperCase().startsWith('LATTICE-')) {
+                _hasScanned = true;
+                widget.onCodeScanned(code.toUpperCase());
+              }
+            },
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: AppColors.activeTab.withValues(alpha: 0.6),
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 80,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Point at a friend\'s QR code',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -22,6 +22,7 @@ def _user_response(user: User) -> UserResponse:
         created_at=user.created_at,
         updated_at=user.updated_at,
         last_login=user.last_login,
+        friend_code=user.friend_code,
         is_active=user.is_active,
     )
 
