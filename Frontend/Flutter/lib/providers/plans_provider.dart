@@ -37,4 +37,47 @@ class PlansProvider extends ChangeNotifier {
   Future<Plan> switchBranch(String planId, String branchId) async {
     return _api.switchBranch(planId, branchId);
   }
+
+  /// Log progress on a node (change status, optionally add a note).
+  ///
+  /// Refreshes the plan list after a successful call so home screen
+  /// summaries stay current.
+  Future<Map<String, dynamic>> logProgress(
+    String planId,
+    String nodeId, {
+    required String status,
+    String? note,
+  }) async {
+    final result = await _api.logProgress(
+      planId,
+      nodeId,
+      status: status,
+      note: note,
+    );
+    await fetchPlans();
+    return result;
+  }
+
+  /// Convenience wrapper that marks a node as completed.
+  Future<Map<String, dynamic>> markNodeComplete(
+    String planId,
+    String nodeId,
+  ) async {
+    return logProgress(
+      planId,
+      nodeId,
+      status: 'completed',
+    );
+  }
+
+  /// Add a note to a node and refresh the plan list.
+  Future<Plan> addNote(
+    String planId,
+    String nodeId,
+    String content,
+  ) async {
+    final plan = await _api.addNote(planId, nodeId, content);
+    await fetchPlans();
+    return plan;
+  }
 }

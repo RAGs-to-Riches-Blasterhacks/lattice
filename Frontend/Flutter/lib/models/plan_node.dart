@@ -73,6 +73,36 @@ class Branch {
   }
 }
 
+/// A timestamped note attached to a plan node.
+class NodeNote {
+  final String content;
+  final DateTime createdAt;
+
+  const NodeNote({required this.content, required this.createdAt});
+
+  factory NodeNote.fromJson(Map<String, dynamic> json) {
+    return NodeNote(
+      content: json['content'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+}
+
+/// A single activity log entry for a plan node.
+class ActivityEntry {
+  final DateTime date;
+  final String? note;
+
+  const ActivityEntry({required this.date, this.note});
+
+  factory ActivityEntry.fromJson(Map<String, dynamic> json) {
+    return ActivityEntry(
+      date: DateTime.parse(json['date'] as String),
+      note: json['note'] as String?,
+    );
+  }
+}
+
 class PlanNode {
   final String nodeId;
   final String branchId;
@@ -81,6 +111,8 @@ class PlanNode {
   final String description;
   final NodeStatus status;
   final List<Resource> resources;
+  final List<NodeNote> notes;
+  final List<ActivityEntry> activityLog;
   final String? skillLevel;
   final String? typeOfTask;
   final bool needsRegeneration;
@@ -93,6 +125,8 @@ class PlanNode {
     required this.description,
     required this.status,
     required this.resources,
+    this.notes = const [],
+    this.activityLog = const [],
     this.skillLevel,
     this.typeOfTask,
     this.needsRegeneration = false,
@@ -111,6 +145,12 @@ class PlanNode {
       ),
       resources: (json['resources'] as List<dynamic>? ?? [])
           .map((r) => Resource.fromJson(r as Map<String, dynamic>))
+          .toList(),
+      notes: (json['notes'] as List<dynamic>? ?? [])
+          .map((n) => NodeNote.fromJson(n as Map<String, dynamic>))
+          .toList(),
+      activityLog: (json['activity_log'] as List<dynamic>? ?? [])
+          .map((a) => ActivityEntry.fromJson(a as Map<String, dynamic>))
           .toList(),
       skillLevel: json['skill_level'] as String?,
       typeOfTask: json['type_of_task'] as String?,
@@ -227,11 +267,9 @@ class Plan {
   int get primaryColorValue {
     if (palette != null && palette!.colors.isNotEmpty) {
       final primary = palette!.colors.where((c) => c.role == 'primary');
-      final hex = primary.isNotEmpty
-          ? primary.first.hex
-          : palette!.colors.first.hex;
-      return int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16) ??
-          0xFF33658A;
+      final hex =
+          primary.isNotEmpty ? primary.first.hex : palette!.colors.first.hex;
+      return int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16) ?? 0xFF33658A;
     }
     return 0xFF33658A;
   }
@@ -247,6 +285,7 @@ class PlanSummary {
   final int branchCount;
   final int nodeCount;
   final int completedNodeCount;
+  final String? currentNodeId;
   final String? currentNodeTitle;
   final String? currentNodeDescription;
   final List<Resource> currentNodeResources;
@@ -262,6 +301,7 @@ class PlanSummary {
     required this.branchCount,
     required this.nodeCount,
     required this.completedNodeCount,
+    this.currentNodeId,
     this.currentNodeTitle,
     this.currentNodeDescription,
     this.currentNodeResources = const [],
@@ -282,11 +322,13 @@ class PlanSummary {
       branchCount: json['branch_count'] as int? ?? 0,
       nodeCount: json['node_count'] as int? ?? 0,
       completedNodeCount: json['completed_node_count'] as int? ?? 0,
+      currentNodeId: json['current_node_id'] as String?,
       currentNodeTitle: json['current_node_title'] as String?,
       currentNodeDescription: json['current_node_description'] as String?,
-      currentNodeResources: (json['current_node_resources'] as List<dynamic>? ?? [])
-          .map((r) => Resource.fromJson(r as Map<String, dynamic>))
-          .toList(),
+      currentNodeResources:
+          (json['current_node_resources'] as List<dynamic>? ?? [])
+              .map((r) => Resource.fromJson(r as Map<String, dynamic>))
+              .toList(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
