@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
@@ -7,24 +8,13 @@ import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
 import '../widgets/plan_card.dart';
 
-// ── Placeholder plan data ────────────────────────────────────────────────────
-// Replace with real plan model once available.
-class _PlaceholderPlan {
-  final String title;
-  final String description;
-  final Color color;
-  final String currentTask;
-  final int currentStep;
-  final int totalSteps;
-  const _PlaceholderPlan(this.title, this.description, this.color, this.currentTask, this.currentStep, this.totalSteps);
-}
-
-const _placeholderPlans = [
-  _PlaceholderPlan('Learning Blender', 'Master 3D modeling, sculpting, and animation with hands-on projects.', Color(0xFF6A9F6B), 'Follow donut tutorial part 3', 5, 20),
-  _PlaceholderPlan('Building Computers', 'Learn to select components, assemble, and configure a custom PC.', Color(0xFF8FAFD4), 'Research GPU benchmarks for budget', 3, 12),
-  _PlaceholderPlan('Meal Planning', 'Build weekly meal habits with balanced nutrition and prep strategies.', Color(0xFFE8A0B4), 'Prep Sunday batch cook list', 7, 15),
-  _PlaceholderPlan('Exercise Routine', 'Develop a consistent strength and cardio regimen tailored to your goals.', Color(0xFFF5F0E1), 'Complete upper body day A', 10, 24),
-  _PlaceholderPlan('Valorant Training', 'Improve aim, game sense, and agent mechanics through structured drills.', Color(0xFFBFA2DB), 'Play a round of deathmatch', 8, 30),
+// Default card colors when plans don't have a palette
+const _defaultColors = [
+  Color(0xFF6A9F6B),
+  Color(0xFF8FAFD4),
+  Color(0xFFE8A0B4),
+  Color(0xFFF5F0E1),
+  Color(0xFFBFA2DB),
 ];
 
 class HomeScreen extends StatefulWidget {
@@ -137,19 +127,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _cardRect = cardOffset & cardBox.size;
       _bodySize = bodyBox.size;
       _isFrontCardExpanded = true;
-      _overlayExpanded = false; // overlay starts at card position…
+      _overlayExpanded = false;
     });
 
-    // …then on the next frame, animate it to full screen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _overlayExpanded = true);
     });
   }
 
   void _dismissExpandedCard() {
-    // Animate the overlay back to the card's original position…
     setState(() => _overlayExpanded = false);
-    // …then remove it once the animation finishes.
     Future.delayed(const Duration(milliseconds: 380), () {
       if (mounted) setState(() => _isFrontCardExpanded = false);
     });
@@ -162,9 +149,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const double _stackGap = 50;
   static const double _scaleStep = 0.03;
 
-  Widget _buildCardStack() {
-    _syncCardOrder(_placeholderPlans.length);
-    if (_placeholderPlans.isEmpty) return const SizedBox.shrink();
+  Widget _buildCardStack(List<PlanSummary> plans) {
+    _syncCardOrder(plans.length);
+    if (plans.isEmpty) return const SizedBox.shrink();
 
     final visible = _cardOrder.take(_maxVisible).toList();
     const frontTop = _stackGap * (_maxVisible - 1);
@@ -176,28 +163,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         clipBehavior: Clip.none,
         children: [
           for (int i = visible.length - 1; i >= 0; i--)
-            _buildPositionedCard(i, visible[i], frontTop),
+            _buildPositionedCard(i, visible[i], frontTop, plans),
         ],
       ),
     );
   }
 
   Widget _buildPositionedCard(
-      int stackIndex, int planIndex, double frontTop) {
+      int stackIndex, int planIndex, double frontTop, List<PlanSummary> plans) {
     final isFront = stackIndex == 0;
 
     Widget buildCard(int pIndex, {Key? key, VoidCallback? onTap}) {
-      final plan = _placeholderPlans[pIndex];
+      final plan = plans[pIndex];
+      final color = _defaultColors[pIndex % _defaultColors.length];
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: PlanCard(
           key: key,
-          title: plan.title,
-          description: plan.description,
-          cardColor: plan.color,
-          currentTask: plan.currentTask,
-          currentStep: plan.currentStep,
-          totalSteps: plan.totalSteps,
+          title: plan.skillName,
+          description: plan.description ?? '',
+          cardColor: color,
+          currentTask: plan.currentNodeTitle ?? 'No active task',
+          currentStep: plan.completedNodeCount,
+          totalSteps: plan.nodeCount,
           onTap: onTap,
         ),
       );
@@ -213,8 +201,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Curves.easeIn.transform(_swipeController.value)
               : _dragDy;
 
-          // Fade to invisible while the overlay is open so the card stays in
-          // place in the layout (no snapping) but isn't drawn twice.
           final swipeOpacity = _swipeController.isAnimating
               ? 1.0 - Curves.easeIn.transform(_swipeController.value)
               : 1.0;
@@ -228,8 +214,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ? (1.0 - _scaleStep) + _scaleStep * shiftT
               : 1.0;
 
-          // Outer GestureDetector handles swipe-down only.
-          // PlanCard's onTap handles tap-to-expand via _onFrontCardTap.
           final card = GestureDetector(
             onVerticalDragUpdate: _onVerticalDragUpdate,
             onVerticalDragEnd: _onVerticalDragEnd,
@@ -253,8 +237,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Back cards: not interactive — IgnorePointer prevents their internal
-    // GestureDetectors from consuming touch events.
     return AnimatedBuilder(
       animation: _shiftController,
       builder: (context, _) {
@@ -291,8 +273,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Precompute overlay bottom margin for the dismissed (card-position) state.
-    // Horizontal dimensions are never animated — only top/bottom expand.
+    final plansProvider = context.watch<PlansProvider>();
+    final plans = plansProvider.plans;
+
     final overlayBottom =
         _bodySize.height > 0 ? _bodySize.height - _cardRect.bottom : 0.0;
 
@@ -303,11 +286,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       body: Stack(
         key: _bodyStackKey,
         children: [
-          // ── Title + card stack ──────────────────────────────────────────────
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title fades out while the overlay is open.
               AnimatedOpacity(
                 opacity: _isFrontCardExpanded ? 0.0 : 1.0,
                 duration: const Duration(milliseconds: 200),
@@ -328,9 +309,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-                            const SizedBox(height: 6),
-
-
+              const SizedBox(height: 6),
               AnimatedOpacity(
                 opacity: _isFrontCardExpanded ? 0.0 : 1.0,
                 duration: const Duration(milliseconds: 200),
@@ -356,44 +335,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildCardStack(),
-              const Spacer(),
+              if (plansProvider.loading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  ),
+                )
+              else if (plansProvider.error != null)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          plansProvider.error!,
+                          style: const TextStyle(color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () => plansProvider.fetchPlans(),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (plans.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      'No plans yet.\nUse the bar below to start one!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                _buildCardStack(plans),
+                const Spacer(),
+              ],
             ],
           ),
 
           // ── Expanding card overlay ──────────────────────────────────────────
-          // Starts at the front card's exact rect and animates to fill the body.
-          if (_isFrontCardExpanded)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeInOut,
-              top: _overlayExpanded ? 0 : _cardRect.top,
-              left: _overlayExpanded ? 0 : _cardRect.left,
-              right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
-              bottom: _overlayExpanded ? 0 : overlayBottom,
-              child: ClipRect(
-                child: Container(
-                  color: Colors.transparent,
-                  child: SingleChildScrollView(
-                    // Disable scrolling while the overlay is animating.
-                    physics: _overlayExpanded
-                        ? null
-                        : const NeverScrollableScrollPhysics(),
-                    child: PlanCard(
-                      title: _placeholderPlans[_cardOrder[0]].title,
-                      description: _placeholderPlans[_cardOrder[0]].description,
-                      cardColor: _placeholderPlans[_cardOrder[0]].color,
-                      currentTask: _placeholderPlans[_cardOrder[0]].currentTask,
-                      currentStep: _placeholderPlans[_cardOrder[0]].currentStep,
-                      totalSteps: _placeholderPlans[_cardOrder[0]].totalSteps,
-                      startExpanded: true,
-                      // Tapping the expanded card shrinks the overlay back.
-                      onTap: _dismissExpandedCard,
+          if (_isFrontCardExpanded && plans.isNotEmpty) ...[
+            () {
+              final frontPlan = plans[_cardOrder[0]];
+              final color = _defaultColors[_cardOrder[0] % _defaultColors.length];
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeInOut,
+                top: _overlayExpanded ? 0 : _cardRect.top,
+                left: _overlayExpanded ? 0 : _cardRect.left,
+                right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
+                bottom: _overlayExpanded ? 0 : overlayBottom,
+                child: ClipRect(
+                  child: Container(
+                    color: Colors.transparent,
+                    child: SingleChildScrollView(
+                      physics: _overlayExpanded
+                          ? null
+                          : const NeverScrollableScrollPhysics(),
+                      child: PlanCard(
+                        title: frontPlan.skillName,
+                        description: frontPlan.description ?? '',
+                        cardColor: color,
+                        currentTask: frontPlan.currentNodeTitle ?? 'No active task',
+                        currentStep: frontPlan.completedNodeCount,
+                        totalSteps: frontPlan.nodeCount,
+                        startExpanded: true,
+                        onTap: _dismissExpandedCard,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }(),
+          ],
 
           const PlanInputBar(),
         ],

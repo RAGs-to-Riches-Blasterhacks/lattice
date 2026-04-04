@@ -58,6 +58,23 @@ def _plan_response(plan: Plan) -> PlanResponse:
 
 
 def _plan_summary(plan: Plan) -> PlanSummaryResponse:
+    from app.models.plan import NodeStatus
+
+    active_nodes = plan_service.get_active_path(plan)
+    completed = sum(1 for n in active_nodes if n.status == NodeStatus.completed)
+
+    current_title = None
+    if plan.current_node_id:
+        node = plan_service._find_node(plan, plan.current_node_id)
+        if node:
+            current_title = node.title
+    if current_title is None and active_nodes:
+        # Fall back to first non-completed node on the active path
+        for n in active_nodes:
+            if n.status != NodeStatus.completed:
+                current_title = n.title
+                break
+
     return PlanSummaryResponse(
         id=str(plan.id),
         skill_name=plan.skill_name,
@@ -65,7 +82,9 @@ def _plan_summary(plan: Plan) -> PlanSummaryResponse:
         status=plan.status,
         active_branch_id=plan.active_branch_id,
         branch_count=len(plan.branches),
-        node_count=len(plan.nodes),
+        node_count=len(active_nodes),
+        completed_node_count=completed,
+        current_node_title=current_title,
         created_at=plan.created_at,
         updated_at=plan.updated_at,
     )

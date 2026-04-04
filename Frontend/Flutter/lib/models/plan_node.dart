@@ -246,6 +246,8 @@ class PlanSummary {
   final String activeBranchId;
   final int branchCount;
   final int nodeCount;
+  final int completedNodeCount;
+  final String? currentNodeTitle;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -257,6 +259,8 @@ class PlanSummary {
     required this.activeBranchId,
     required this.branchCount,
     required this.nodeCount,
+    required this.completedNodeCount,
+    this.currentNodeTitle,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -273,6 +277,8 @@ class PlanSummary {
       activeBranchId: json['active_branch_id'] as String,
       branchCount: json['branch_count'] as int? ?? 0,
       nodeCount: json['node_count'] as int? ?? 0,
+      completedNodeCount: json['completed_node_count'] as int? ?? 0,
+      currentNodeTitle: json['current_node_title'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
