@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/topnav.dart';
 
 // ── Placeholder plan data ────────────────────────────────────────────────────
@@ -248,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const TopNav(),
+      drawer: const AppDrawer(),
       body: Stack(
         children: [
           // Title + card stack centered vertically
