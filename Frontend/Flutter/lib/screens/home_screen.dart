@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/models/plan_node.dart';
-import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
-import 'package:lattice/widgets/plan_card.dart';
 import 'package:lattice/widgets/plan_input_bar.dart';
 import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
@@ -35,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _shiftController;
 
   double _dragDy = 0;
-  bool _isFrontCardExpanded = false;
+  final bool _isFrontCardExpanded = false;
 
   @override
   void initState() {
@@ -100,10 +98,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _swipeController.reset();
     await _shiftController.forward(from: 0);
-  }
-
-  void _onFrontCardTap() {
-    setState(() => _isFrontCardExpanded = !_isFrontCardExpanded);
   }
 
   // ── Card stack builder ─────────────────────────────────────────────────────
