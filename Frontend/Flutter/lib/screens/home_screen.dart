@@ -451,6 +451,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             planTitle: (_isFrontCardExpanded && plans.isNotEmpty)
                 ? plans[_cardOrder[0]].skillName
                 : null,
+            planId: (_isFrontCardExpanded && plans.isNotEmpty)
+                ? plans[_cardOrder[0]].id
+                : null,
             planCardColor: (_isFrontCardExpanded && plans.isNotEmpty)
                 ? _defaultColors[_cardOrder[0] % _defaultColors.length]
                 : null,
@@ -459,6 +462,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             },
             onPlanChatDismissed: () {
               setState(() => _planChatActive = false);
+            },
+            onPlanCreated: () {
+              plansProvider.fetchPlans();
             },
           ),
         ],
