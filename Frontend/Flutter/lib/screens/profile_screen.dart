@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 // Title
                 const Text(
-                  'Profile',
+                  'DisplayName\'s Profile', // add user's display name here!
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 40,
