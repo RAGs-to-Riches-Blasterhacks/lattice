@@ -42,6 +42,16 @@ class NodeEditRequest(BaseModel):
     scheduled_date: Optional[str] = None
 
 
+class AddNoteRequest(BaseModel):
+    content: str
+
+
+class LogProgressRequest(BaseModel):
+    """Mark a node's status and optionally log an activity entry."""
+    status: NodeStatus
+    note: Optional[str] = None
+
+
 class BranchSwitchRequest(BaseModel):
     branch_id: str
 
@@ -85,6 +95,13 @@ class PlanResponse(BaseModel):
     updated_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+
+
+class ProgressResponse(BaseModel):
+    node_id: str
+    status: NodeStatus
+    completed_at: Optional[datetime] = None
+    plan_completed: bool
 
 
 class PlanSummaryResponse(BaseModel):

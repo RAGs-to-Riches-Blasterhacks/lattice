@@ -1,16 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import get_current_user
-from app.models.plan import Plan
+from app.models.plan import Plan, PlanStatus
 from app.models.user import User
 from app.schemas.plan import (
     ActivePathResponse,
+    AddNoteRequest,
     BranchResponse,
     BranchSwitchRequest,
+    LogProgressRequest,
     NodeEditRequest,
     PlanCreate,
     PlanResponse,
     PlanSummaryResponse,
+    ProgressResponse,
 )
 from app.services import plan_service
 
@@ -155,6 +158,91 @@ async def edit_node(
     return _plan_response(plan)
 
 
+@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_plan(plan_id: str, user: User = Depends(get_current_user)):
+    """Delete a plan regardless of its status."""
+    plan = await _get_user_plan(plan_id, user)
+    await plan.delete()
+    return None
+
+
+@router.post(
+    "/{plan_id}/nodes/{node_id}/notes",
+    response_model=PlanResponse,
+)
+async def add_note(
+    plan_id: str,
+    node_id: str,
+    body: AddNoteRequest,
+    user: User = Depends(get_current_user),
+):
+    """Add a note to a specific step."""
+    from app.models.plan import NodeNote
+
+    plan = await _get_user_plan(plan_id, user)
+    node = plan_service._find_node(plan, node_id)
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+        )
+    node.notes.append(NodeNote(content=body.content))
+    from datetime import datetime
+    plan.updated_at = datetime.utcnow()
+    await plan.save()
+    return _plan_response(plan)
+
+
+@router.post(
+    "/{plan_id}/nodes/{node_id}/progress",
+    response_model=ProgressResponse,
+)
+async def log_progress(
+    plan_id: str,
+    node_id: str,
+    body: LogProgressRequest,
+    user: User = Depends(get_current_user),
+):
+    """Log progress on a step: update its status and optionally add an activity entry."""
+    from datetime import date as date_cls, datetime
+
+    from app.models.plan import ActivityEntry, NodeStatus
+
+    plan = await _get_user_plan(plan_id, user)
+    node = plan_service._find_node(plan, node_id)
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+        )
+
+    node.status = body.status
+    node.activity_log.append(
+        ActivityEntry(date=date_cls.today(), note=body.note)
+    )
+
+    if body.status == NodeStatus.completed:
+        node.completed_at = datetime.utcnow()
+
+    # Auto-complete the plan when all active-branch nodes are done
+    plan_completed = False
+    if body.status == NodeStatus.completed:
+        active_nodes = plan_service.get_active_path(plan)
+        if active_nodes and all(
+            n.status == NodeStatus.completed for n in active_nodes
+        ):
+            plan.status = PlanStatus.completed
+            plan.completed_at = datetime.utcnow()
+            plan_completed = True
+
+    plan.updated_at = datetime.utcnow()
+    await plan.save()
+    return ProgressResponse(
+        node_id=node_id,
+        status=node.status,
+        completed_at=node.completed_at,
+        plan_completed=plan_completed,
+    )
+
+
 @router.post("/{plan_id}/switch-branch", response_model=PlanResponse)
 async def switch_branch(
     plan_id: str,
@@ -170,3 +258,5 @@ async def switch_branch(
 
     await plan.save()
     return _plan_response(plan)
+
+

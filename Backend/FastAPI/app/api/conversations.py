@@ -12,6 +12,7 @@ from app.schemas.conversation import (
     MessageResponse,
 )
 from app.services.agent_service import get_agent_response
+from app.services.plan_updater_service import get_updater_response
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -115,26 +116,37 @@ async def send_message(
 
     # Invoke the agent for user messages
     if body.role == MessageRole.user:
-        plan_id = str(conv.plan_id) if conv.plan_id else None
-        result = await get_agent_response(
-            conv_id, user, body.content, plan_id=plan_id
-        )
+        if conv.plan_id:
+            # Conversation is tied to an existing plan — use the updater agent
+            updater_result = await get_updater_response(
+                str(conv.plan_id), user, body.content, conv_id=conv_id
+            )
+            conv.messages.append(
+                Message(
+                    role=MessageRole.assistant,
+                    content=updater_result.text,
+                )
+            )
+        else:
+            # No plan yet — use the plan creator agent
+            result = await get_agent_response(
+                conv_id, user, body.content, plan_id=None
+            )
 
-        # Build metadata with plan_id if the agent saved one
-        metadata = None
-        if result.plan_id:
-            metadata = {"plan_id": result.plan_id}
-            # Also link the conversation to the plan if not already linked
-            if not conv.plan_id:
+            # Build metadata with plan_id if the agent saved one
+            metadata = None
+            if result.plan_id:
+                metadata = {"plan_id": result.plan_id}
                 conv.plan_id = PydanticObjectId(result.plan_id)
 
-        conv.messages.append(
-            Message(
-                role=MessageRole.assistant,
-                content=result.text,
-                metadata=metadata,
+            conv.messages.append(
+                Message(
+                    role=MessageRole.assistant,
+                    content=result.text,
+                    metadata=metadata,
+                )
             )
-        )
+
         conv.updated_at = datetime.utcnow()
         await conv.save()
 

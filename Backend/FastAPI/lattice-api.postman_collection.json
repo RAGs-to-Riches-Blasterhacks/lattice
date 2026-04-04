@@ -244,6 +244,53 @@
 							"path": ["api", "plans", "{{plan_id}}", "switch-branch"]
 						}
 					}
+				},
+				{
+					"name": "Delete Plan",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Add Note to Node",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"This was a tricky section, revisit later.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}/nodes/{{node_id}}/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}", "nodes", "{{node_id}}", "notes"]
+						}
+					}
+				},
+				{
+					"name": "Log Progress",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"completed\",\n    \"note\": \"Finished all exercises\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/plans/{{plan_id}}/nodes/{{node_id}}/progress",
+							"host": ["{{base_url}}"],
+							"path": ["api", "plans", "{{plan_id}}", "nodes", "{{node_id}}", "progress"]
+						}
+					}
 				}
 			]
 		},
