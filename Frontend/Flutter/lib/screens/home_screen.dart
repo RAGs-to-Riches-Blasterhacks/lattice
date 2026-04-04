@@ -44,10 +44,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _swipeStartDy = 0;
   static const double _swipeEndDy = 600;
 
-  // Animate remaining cards shifting forward after a swipe.
+  // Animate remaining cards shifting forward after a swipe-down.
   late AnimationController _shiftController;
 
+  // Animate the last card sliding in from below on swipe-up (reverse of dismiss).
+  late AnimationController _reverseShiftController;
+
   double _dragDy = 0;
+  // Unclamped accumulator used for gesture threshold detection.
+  double _rawDragDy = 0;
 
   // Whether the expanded overlay is showing.
   bool _isFrontCardExpanded = false;
@@ -64,12 +69,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _swipeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 40),
     );
 
     _shiftController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
+    );
+
+    _reverseShiftController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
     );
   }
 
@@ -77,24 +87,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _swipeController.dispose();
     _shiftController.dispose();
+    _reverseShiftController.dispose();
     super.dispose();
   }
 
   // ── Swipe handling ─────────────────────────────────────────────────────────
 
+  void _onVerticalDragStart(DragStartDetails d) {
+    _rawDragDy = 0;
+  }
+
   void _onVerticalDragUpdate(DragUpdateDetails d) {
     if (_isFrontCardExpanded) return;
-    setState(() => _dragDy = (_dragDy + d.delta.dy).clamp(0, double.infinity));
+    _rawDragDy += d.delta.dy;
+    setState(() => _dragDy = _rawDragDy.clamp(-20.0, double.infinity));
   }
 
   void _onVerticalDragEnd(DragEndDetails d) {
     if (_isFrontCardExpanded) return;
     final velocity = d.primaryVelocity ?? 0;
-    if (_dragDy > 80 || velocity > 800) {
+    if (_rawDragDy > 80 || velocity > 800) {
       _dismissFrontCard();
+    } else if (_rawDragDy < -80 || velocity < -800) {
+      _bringLastCardToFront();
     } else {
       setState(() => _dragDy = 0);
     }
+  }
+
+  bool get _isAnimating =>
+      _swipeController.isAnimating ||
+      _shiftController.isAnimating ||
+      _reverseShiftController.isAnimating;
+
+  // Tap a back card at [stackIndex] to bring it to the front by cycling
+  // through each intermediate card using the existing dismiss animation.
+  Future<void> _bringCardToFront(int stackIndex) async {
+    if (_isAnimating || _isFrontCardExpanded) return;
+    for (int i = 0; i < stackIndex; i++) {
+      await _dismissFrontCard();
+    }
+  }
+
+  Future<void> _bringLastCardToFront() async {
+    setState(() {
+      _cardOrder.insert(0, _cardOrder.removeLast());
+      _dragDy = 0;
+    });
+    await _reverseShiftController.forward(from: 0);
+    _reverseShiftController.reset();
   }
 
   Future<void> _dismissFrontCard() async {
@@ -191,34 +232,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (isFront) {
       return AnimatedBuilder(
-        animation: Listenable.merge([_swipeController, _shiftController]),
+        animation: Listenable.merge([_swipeController, _shiftController, _reverseShiftController]),
         builder: (context, _) {
-          final dy = _swipeController.isAnimating
-              ? _swipeStartDy +
-                  (_swipeEndDy - _swipeStartDy) *
-                      Curves.easeIn.transform(_swipeController.value)
-              : _dragDy;
+          final double dy;
+          if (_swipeController.isAnimating) {
+            dy = _swipeStartDy +
+                (_swipeEndDy - _swipeStartDy) *
+                    Curves.easeInOutQuart.transform(_swipeController.value);
+          } else {
+            // Positive = dragged/swiped down; negative = dragged/swiped up.
+            // During reverse animation _dragDy is already reset to 0.
+            dy = _dragDy;
+          }
 
           // Fade to invisible while the overlay is open so the card stays in
           // place in the layout (no snapping) but isn't drawn twice.
           final swipeOpacity = _swipeController.isAnimating
-              ? 1.0 - Curves.easeIn.transform(_swipeController.value)
+              ? 1.0 - Curves.easeInOutQuart.transform(_swipeController.value)
               : 1.0;
           final opacity = _isFrontCardExpanded ? 0.0 : swipeOpacity;
 
-          // During shift animation, the new front card slides down from
-          // its old position (one gap above) into the front position.
-          final shiftT = _shiftController.value;
-          final top = _shiftController.isAnimating
-              ? frontTop - _stackGap * (1.0 - shiftT)
-              : frontTop;
-          final scale = _shiftController.isAnimating
-              ? (1.0 - _scaleStep) + _scaleStep * shiftT
-              : 1.0;
+          final double top;
+          final double scale;
+          if (_reverseShiftController.isAnimating) {
+            // Incoming card slides up from below the screen into front position.
+            final t = Curves.easeInOutQuart.transform(_reverseShiftController.value);
+            top = frontTop + _swipeEndDy * (1.0 - t);
+            scale = (1.0 - _scaleStep) + _scaleStep * t;
+          } else if (_shiftController.isAnimating) {
+            // During shift animation, the new front card slides down from
+            // its old position (one gap above) into the front position.
+            final shiftT = Curves.easeOut.transform(_shiftController.value);
+            top = frontTop - _stackGap * (1.0 - shiftT);
+            scale = (1.0 - _scaleStep) + _scaleStep * shiftT;
+          } else {
+            top = frontTop;
+            scale = 1.0;
+          }
 
           // Outer GestureDetector handles swipe-down only.
           // PlanCard's onTap handles tap-to-expand via _onFrontCardTap.
           final card = GestureDetector(
+            onVerticalDragStart: _onVerticalDragStart,
             onVerticalDragUpdate: _onVerticalDragUpdate,
             onVerticalDragEnd: _onVerticalDragEnd,
             child: buildCard(_cardOrder[0],
@@ -241,10 +296,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Back cards: not interactive — IgnorePointer prevents their internal
-    // GestureDetectors from consuming touch events.
+    // Back cards: tapping the peeking portion brings that card to the front.
     return AnimatedBuilder(
-      animation: _shiftController,
+      animation: Listenable.merge([_shiftController, _reverseShiftController]),
       builder: (context, _) {
         final newTop = frontTop - stackIndex * _stackGap;
         final newScale = 1.0 - stackIndex * _scaleStep;
@@ -252,10 +306,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         double top;
         double s;
         if (_shiftController.isAnimating) {
+          // Forward swipe: cards shift one step closer to front.
+          final t = Curves.easeInOutQuart.transform(_shiftController.value);
           final oldTop = frontTop - (stackIndex + 1) * _stackGap;
-          top = oldTop + (newTop - oldTop) * _shiftController.value;
+          top = oldTop + (newTop - oldTop) * t;
           final oldScale = 1.0 - (stackIndex + 1) * _scaleStep;
-          s = oldScale + (newScale - oldScale) * _shiftController.value;
+          s = oldScale + (newScale - oldScale) * t;
+        } else if (_reverseShiftController.isAnimating) {
+          // Reverse swipe: cards shift one step further back.
+          final t = Curves.easeInOutQuart.transform(_reverseShiftController.value);
+          final startTop = frontTop - (stackIndex - 1) * _stackGap;
+          top = startTop + (newTop - startTop) * t;
+          final startScale = 1.0 - (stackIndex - 1) * _scaleStep;
+          s = startScale + (newScale - startScale) * t;
         } else {
           top = newTop;
           s = newScale;
@@ -268,7 +331,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Transform.scale(
             scale: s,
             alignment: Alignment.topCenter,
-            child: IgnorePointer(child: buildCard(_cardOrder[stackIndex])),
+            child: buildCard(_cardOrder[stackIndex],
+                onTap: () => _bringCardToFront(stackIndex)),
           ),
         );
       },
