@@ -222,10 +222,12 @@ async def log_progress(
     body: LogProgressRequest,
     user: User = Depends(get_current_user),
 ):
-    """Log progress on a step: update its status and optionally add an activity entry."""
+    """Log progress on a step: update its status, add an activity entry, and
+    update the user's streak."""
     from datetime import date as date_cls, datetime
 
     from app.models.plan import ActivityEntry, NodeStatus
+    from app.models.streak import Streak
 
     plan = await _get_user_plan(plan_id, user)
     node = plan_service._find_node(plan, node_id)
@@ -255,6 +257,27 @@ async def log_progress(
 
     plan.updated_at = datetime.utcnow()
     await plan.save()
+
+    # Update the user's global streak
+    from app.api.streaks import _recompute_streak
+
+    today = date_cls.today()
+    streak = await Streak.find_one(Streak.user_id == user.id)
+    if streak is None:
+        streak = Streak(user_id=user.id)
+        await streak.insert()
+
+    if today not in streak.activity_dates:
+        streak.activity_dates.append(today)
+
+    streak.last_activity_date = today
+    streak.total_days_active = len(set(streak.activity_dates))
+    streak.current_streak, streak.longest_streak = _recompute_streak(
+        streak.activity_dates
+    )
+    streak.updated_at = datetime.utcnow()
+    await streak.save()
+
     return ProgressResponse(
         node_id=node_id,
         status=node.status,

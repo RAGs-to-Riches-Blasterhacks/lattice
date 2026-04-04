@@ -517,22 +517,32 @@ class _ActionButtons extends StatelessWidget {
           color: AppColors.accent,
           onTap: () => onStatusChange('in_progress'),
         ),
-      NodeStatus.in_progress => Row(
+      NodeStatus.in_progress => Column(
           children: [
-            Expanded(
-              child: _buildButton(
-                label: 'Mark Complete',
-                color: AppColors.nodeCompleted,
-                onTap: () => onStatusChange('completed'),
-              ),
+            _buildButton(
+              label: 'Log Progress',
+              color: AppColors.accent,
+              onTap: () => onStatusChange('in_progress'),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildButton(
-                label: 'Skip',
-                color: AppColors.nodeSkipped,
-                onTap: () => onStatusChange('skipped'),
-              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildButton(
+                    label: 'Mark Complete',
+                    color: AppColors.nodeCompleted,
+                    onTap: () => onStatusChange('completed'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildButton(
+                    label: 'Skip',
+                    color: AppColors.nodeSkipped,
+                    onTap: () => onStatusChange('skipped'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
