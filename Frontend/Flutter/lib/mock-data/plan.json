@@ -1,0 +1,157 @@
+{
+  "id": "plan_001",
+  "skill_name": "Python Programming",
+  "description": "A structured learning plan to take you from Python basics through algorithms and real-world projects.",
+  "active_branch_id": "branch_main",
+  "branches": [
+    {
+      "branch_id": "branch_main",
+      "name": "Main Path",
+      "diverged_from_node_id": null,
+      "parent_branch_id": null,
+      "first_node_id": "node_001",
+      "tip_node_id": "node_007",
+      "is_archived": false
+    },
+    {
+      "branch_id": "branch_alt",
+      "name": "Project-First Approach",
+      "diverged_from_node_id": "node_003",
+      "parent_branch_id": "branch_main",
+      "first_node_id": "node_alt_001",
+      "tip_node_id": "node_alt_004",
+      "is_archived": false
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "node_001",
+      "branch_id": "branch_main",
+      "node_number": 1,
+      "title": "Python Fundamentals",
+      "description": "Learn variables, data types, control flow, functions, and basic I/O. Build a foundation for everything that follows.",
+      "status": "completed",
+      "resources": [
+        { "type": "youtube", "title": "Python for Beginners – Full Course", "url": "https://youtube.com" },
+        { "type": "article", "title": "Official Python Tutorial", "url": "https://docs.python.org/3/tutorial" }
+      ]
+    },
+    {
+      "node_id": "node_002",
+      "branch_id": "branch_main",
+      "node_number": 2,
+      "title": "Data Structures",
+      "description": "Explore lists, dictionaries, sets, and tuples. Understand mutability, performance trade-offs, and when to use each.",
+      "status": "completed",
+      "resources": [
+        { "type": "book", "title": "Python Cookbook – Chapter 1", "url": "https://example.com" },
+        { "type": "youtube", "title": "Data Structures in Python", "url": "https://youtube.com" },
+        { "type": "exercise", "title": "LeetCode Easy List Problems", "url": "https://leetcode.com" }
+      ]
+    },
+    {
+      "node_id": "node_003",
+      "branch_id": "branch_main",
+      "node_number": 3,
+      "title": "Algorithms & Complexity",
+      "description": "Study sorting, searching, recursion, and Big-O notation to write performant Python programs.",
+      "status": "completed",
+      "resources": [
+        { "type": "book", "title": "Introduction to Algorithms (CLRS)", "url": "https://example.com" },
+        { "type": "exercise", "title": "LeetCode Medium Sorting Problems", "url": "https://leetcode.com" }
+      ]
+    },
+    {
+      "node_id": "node_004",
+      "branch_id": "branch_main",
+      "node_number": 4,
+      "title": "Object-Oriented Programming",
+      "description": "Master classes, inheritance, encapsulation, and polymorphism. Apply OOP principles to model real-world problems.",
+      "status": "in_progress",
+      "resources": [
+        { "type": "youtube", "title": "OOP in Python – Full Course", "url": "https://youtube.com" },
+        { "type": "exercise", "title": "Build a Library Management System", "url": "https://example.com" }
+      ]
+    },
+    {
+      "node_id": "node_005",
+      "branch_id": "branch_main",
+      "node_number": 6,
+      "title": "File I/O & Modules",
+      "description": "Read and write files, work with the standard library, and structure code into reusable modules and packages.",
+      "status": "not_started",
+      "resources": [
+        { "type": "article", "title": "Python File Handling Guide", "url": "https://realpython.com" }
+      ]
+    },
+    {
+      "node_id": "node_006",
+      "branch_id": "branch_main",
+      "node_number": 7,
+      "title": "Error Handling & Testing",
+      "description": "Write robust programs with try/except, custom exceptions, and unit tests using pytest.",
+      "status": "not_started",
+      "resources": [
+        { "type": "article", "title": "Python Exceptions – Real Python", "url": "https://realpython.com" },
+        { "type": "exercise", "title": "Write Tests for Your Library System", "url": "https://example.com" }
+      ]
+    },
+    {
+      "node_id": "node_007",
+      "branch_id": "branch_main",
+      "node_number": 8,
+      "title": "Capstone: CLI Tool",
+      "description": "Combine everything you've learned to build a polished command-line application of your choice.",
+      "status": "not_started",
+      "resources": [
+        { "type": "event", "title": "Weekly Project Review Session", "url": "https://example.com" }
+      ]
+    },
+    {
+      "node_id": "node_alt_001",
+      "branch_id": "branch_alt",
+      "node_number": 4,
+      "title": "Build a Web Scraper",
+      "description": "Skip the theory and start building. Use requests and BeautifulSoup to scrape real websites and store the data.",
+      "status": "completed",
+      "resources": [
+        { "type": "youtube", "title": "Web Scraping with Python", "url": "https://youtube.com" },
+        { "type": "article", "title": "BeautifulSoup Docs", "url": "https://example.com" }
+      ]
+    },
+    {
+      "node_id": "node_alt_002",
+      "branch_id": "branch_alt",
+      "node_number": 2,
+      "title": "Async Programming Basics",
+      "description": "Learn asyncio and aiohttp to fetch data concurrently. Apply to your scraper to handle many pages at once.",
+      "status": "not_started",
+      "resources": [
+        { "type": "article", "title": "asyncio – Real Python", "url": "https://realpython.com" },
+        { "type": "youtube", "title": "Python Async/Await Explained", "url": "https://youtube.com" }
+      ]
+    },
+    {
+      "node_id": "node_alt_003",
+      "branch_id": "branch_alt",
+      "node_number": 3,
+      "title": "OOP Through Refactoring",
+      "description": "Refactor your scraper into a well-structured class hierarchy. Learn OOP by applying it to code you already understand.",
+      "status": "not_started",
+      "resources": [
+        { "type": "exercise", "title": "Refactor Scraper to OOP Design", "url": "https://example.com" }
+      ]
+    },
+    {
+      "node_id": "node_alt_004",
+      "branch_id": "branch_alt",
+      "node_number": 5,
+      "title": "Capstone: Full Pipeline",
+      "description": "Build a full data pipeline: scrape, process, store to SQLite, and expose via a simple Flask API.",
+      "status": "not_started",
+      "resources": [
+        { "type": "event", "title": "Project Demo Day", "url": "https://example.com" }
+      ]
+    }
+  ]
+}

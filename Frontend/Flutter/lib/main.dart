@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:lattice/screens/home_screen.dart';
+import 'package:lattice/screens/roadmap.dart';
+import 'package:lattice/themes/app_colors.dart';
 
 void main() {
   runApp(const LatticeApp());
@@ -14,10 +15,15 @@ class LatticeApp extends StatelessWidget {
       title: 'Lattice',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        scaffoldBackgroundColor: AppColors.background,
+        colorScheme: const ColorScheme.dark(
+          surface: AppColors.background,
+          primary: AppColors.accent,
+          secondary: AppColors.secondary,
+        ),
       ),
-      home: const HomeScreen(),
+      home: const RoadmapScreen(),
     );
   }
 }
