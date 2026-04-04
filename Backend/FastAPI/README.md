@@ -194,3 +194,15 @@ When a user checks in:
 ## Auth
 
 Users authenticate via **Firebase Auth**. The `User` document stores `firebase_uid` and `email` from Firebase — no passwords are stored in MongoDB. Auth middleware (not yet implemented) will validate Firebase ID tokens on incoming requests and resolve the corresponding `User` document.
+
+## APIs
+
+┌─────────────────────────┬───────────────────────────────────┐
+│        Endpoint         │              Purpose              │
+├─────────────────────────┼───────────────────────────────────┤
+│ POST /api/auth/register │ Create account (email + password) │
+├─────────────────────────┼───────────────────────────────────┤
+│ POST /api/auth/login    │ Sign in (email + password)        │
+├─────────────────────────┼───────────────────────────────────┤
+│ POST /api/auth/oauth    │ Exchange Google/Apple token       │
+└─────────────────────────┴───────────────────────────────────┘

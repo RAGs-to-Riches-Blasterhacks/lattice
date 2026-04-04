@@ -14,3 +14,6 @@ uvicorn==0.43.0
 motor>=3.6.0,<3.7.0
 beanie>=1.27.0,<2.0.0
 pydantic-settings>=2.8.0
+firebase-admin>=6.5.0
+httpx>=0.27.0
+pydantic[email]>=2.0.0
