@@ -9,6 +9,12 @@ class PlanCard extends StatefulWidget {
   // Controls the aspect ratio of the card when it is collapsed.
   // 1.0 = Perfect Square, 1.8 = Widescreen Rectangle, 2.0 = Very Wide Rectangle
   final double collapsedAspectRatio;
+  // If provided, overrides the internal expand/collapse toggle on tap.
+  final VoidCallback? onTap;
+  // If true, the card animates open immediately after mounting.
+  final bool startExpanded;
+  // Called whenever the expanded state changes.
+  final ValueChanged<bool>? onExpandChanged;
 
   const PlanCard({
     super.key,
@@ -16,7 +22,10 @@ class PlanCard extends StatefulWidget {
     required this.description,
     required this.cardColor,
     this.streak = 0,
-    this.collapsedAspectRatio = 1.45, 
+    this.collapsedAspectRatio = 1.45,
+    this.onTap,
+    this.startExpanded = false,
+    this.onExpandChanged,
   });
 
   @override
@@ -24,35 +33,35 @@ class PlanCard extends StatefulWidget {
 }
 
 class _PlanCardState extends State<PlanCard> {
-  bool _isExpanded = false;
+  late bool _isExpanded;
   bool _isButtonPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = false;
+    if (widget.startExpanded) {
+      // Defer so the widget is laid out first, letting AnimatedCrossFade
+      // animate from collapsed → expanded rather than starting expanded.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _isExpanded = true);
+      });
+    }
+  }
 
   void _toggleExpand() {
     setState(() {
       _isExpanded = !_isExpanded;
     });
+    widget.onExpandChanged?.call(_isExpanded);
   }
 
   @override
   Widget build(BuildContext context) {
-    // ─── Aspect Ratio Math ──────────────────────────────────────────────────
-    // 1. Get the full screen width
-    final double screenWidth = MediaQuery.sizeOf(context).width;
-    // 2. Subtract the left/right margins (16.0 + 16.0 = 32.0)
-    final double cardWidth = screenWidth - 32;
-    // 3. Calculate the total height based on your chosen aspect ratio
-    final double totalCollapsedHeight = cardWidth / widget.collapsedAspectRatio;
-    // 4. Subtract the internal top/bottom padding (20.0 + 20.0 = 40.0) 
-    // to get the exact space available for the inner content.
-    final double innerCollapsedHeight = totalCollapsedHeight - 40;
-
     return GestureDetector(
-      onTap: _toggleExpand,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
+      onTap: widget.onTap ?? _toggleExpand,
+      child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         padding: const EdgeInsets.all(20.0),
         decoration: BoxDecoration(
           color: widget.cardColor,
@@ -65,23 +74,29 @@ class _PlanCardState extends State<PlanCard> {
             ),
           ],
         ),
-        child: ClipRect(
-          child: AnimatedCrossFade(
-            duration: const Duration(milliseconds: 300),
-            alignment: Alignment.topCenter,
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            sizeCurve: Curves.easeInOut,
-            // We lock ONLY the collapsed view to our calculated aspect ratio height
-            firstChild: SizedBox(
-              height: innerCollapsedHeight,
-              width: double.infinity,
-              child: _buildCollapsedContent(),
-            ),
-            // The expanded view remains unbounded so it can shrink-wrap its content
-            secondChild: _buildExpandedContent(),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Use actual available width instead of MediaQuery so the card
+            // measures correctly regardless of what container it lives in.
+            final double innerCollapsedHeight =
+                (constraints.maxWidth / widget.collapsedAspectRatio) - 40;
+            return ClipRect(
+              child: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                alignment: Alignment.topCenter,
+                crossFadeState: _isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                sizeCurve: Curves.easeInOut,
+                firstChild: SizedBox(
+                  height: innerCollapsedHeight,
+                  width: double.infinity,
+                  child: _buildCollapsedContent(),
+                ),
+                secondChild: _buildExpandedContent(),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -180,11 +195,11 @@ class _PlanCardState extends State<PlanCard> {
             style: const TextStyle(
               color: Colors.black87,
               fontSize: 18,
-              height: 1.4,
+              height: 1.3,
             ),
           
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildTodoPill(),
       ],
     );

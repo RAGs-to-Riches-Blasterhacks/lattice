@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   '${context.watch<AuthProvider>().user?.displayName ?? 'Your'}\'s Profile',
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 40,
+                    fontSize: 32,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
