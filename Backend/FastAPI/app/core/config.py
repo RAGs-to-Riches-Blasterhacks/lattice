@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
     FIREBASE_API_KEY: str = ""  # Firebase Web API key (for email/password sign-in)
 
+    OPENAI_API_KEY: str = ""  # OpenAI API key (used by litellm for the ADK agent)
+    GOOGLE_API_KEY: str = ""  # Google API key (YouTube Data v3, Books, Custom Search)
+    GOOGLE_CSE_ID: str = ""  # Google Custom Search Engine ID (for articles)
+    EVENTBRITE_TOKEN: str = ""  # Eventbrite private OAuth token (for event details)
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

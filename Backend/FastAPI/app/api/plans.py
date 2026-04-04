@@ -43,6 +43,7 @@ def _plan_response(plan: Plan) -> PlanResponse:
         nodes=plan.nodes,
         branches=[_branch_response(b) for b in plan.branches],
         active_branch_id=plan.active_branch_id,
+        palette=plan.palette,
         status=plan.status,
         current_node_id=plan.current_node_id,
         generation_version=plan.generation_version,

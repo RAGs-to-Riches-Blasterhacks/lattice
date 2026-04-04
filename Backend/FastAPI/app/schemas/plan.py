@@ -7,6 +7,7 @@ from app.models.plan import (
     Branch,
     NodeOption,
     NodeStatus,
+    Palette,
     PlanNode,
     PlanStatus,
     PlanToggles,
@@ -76,6 +77,7 @@ class PlanResponse(BaseModel):
     nodes: list[PlanNode]
     branches: list[BranchResponse]
     active_branch_id: str
+    palette: Optional[Palette] = None
     status: PlanStatus
     current_node_id: Optional[str] = None
     generation_version: int
