@@ -4,11 +4,10 @@ import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/screens/home_screen.dart';
-import 'package:lattice/screens/login_screen.dart';
+import 'package:lattice/screens/landing_screen.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:provider/provider.dart';
-import 'screens/landing_screen.dart';
 
 void main() {
   runApp(const LatticeApp());
@@ -53,7 +52,7 @@ class LatticeApp extends StatelessWidget {
   }
 }
 
-/// Shows [LoginScreen] while auth is loading or when logged out.
+/// Shows [LandingScreen] while auth is loading or when logged out.
 /// Shows [HomeScreen] when the user is authenticated.
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
@@ -74,7 +73,7 @@ class _AuthGate extends StatelessWidget {
     }
 
     if (!auth.isLoggedIn) {
-      return const LoginScreen();
+      return const LandingScreen();
     }
 
     return const HomeScreen();

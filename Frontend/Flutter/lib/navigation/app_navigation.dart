@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/screens/home_screen.dart';
+import 'package:lattice/screens/landing_screen.dart';
+import 'package:lattice/screens/login_screen.dart';
 import 'package:lattice/screens/profile_screen.dart';
 import 'package:lattice/screens/roadmap.dart';
 import 'package:lattice/screens/settings_screen.dart';
@@ -7,13 +9,17 @@ import 'package:lattice/screens/settings_screen.dart';
 class AppNavigation {
   AppNavigation._();
 
+  static const String landingRoute = '/landing';
   static const String homeRoute = '/home';
+  static const String loginRoute = '/login';
   static const String profileRoute = '/profile';
   static const String settingsRoute = '/settings';
   static const String roadmapRoute = '/roadmap';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final Widget page = switch (settings.name) {
+      landingRoute => const LandingScreen(),
+      loginRoute => const LoginScreen(),
       profileRoute => const ProfileScreen(),
       settingsRoute => const SettingsScreen(),
       roadmapRoute => RoadmapScreen(planId: settings.arguments as String?),
@@ -48,6 +54,10 @@ class AppNavigation {
 
   static Future<void> goToHome(BuildContext context) {
     return _replaceStack(context, homeRoute);
+  }
+
+  static Future<void> goToLogin(BuildContext context) {
+    return _replaceCurrent(context, loginRoute);
   }
 
   static Future<void> goToProfile(BuildContext context) {
