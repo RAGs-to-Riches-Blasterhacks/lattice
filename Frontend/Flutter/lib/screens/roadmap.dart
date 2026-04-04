@@ -6,7 +6,8 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/branch_junction_widget.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
-import 'package:lattice/widgets/topnav.dart'; // <-- Added TopNav import
+import 'package:lattice/widgets/app_drawer.dart';
+import 'package:lattice/widgets/topnav.dart';
 
 // ── Sealed roadmap item types ────────────────────────────────────────────────
 
@@ -157,9 +158,8 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      
-      // ── Replaced the old AppBar with TopNav here ─────────────────────────
-      appBar: const TopNav(), 
+      appBar: const TopNav(),
+      drawer: const AppDrawer(),
       
       body: _plan == null
           ? const Center(

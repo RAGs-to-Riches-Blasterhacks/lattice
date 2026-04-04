@@ -26,8 +26,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
         iconSize: MediaQuery.sizeOf(context).width * 0.09,
         
         onPressed: () {
-          // TODO: Open drawer or handle menu tap
-          // Scaffold.of(context).openDrawer();
+          Scaffold.of(context).openDrawer();
         },
       ),
       
@@ -54,7 +53,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           onPressed: () {
-            // TODO: Navigate to profile or show profile modal
+            Navigator.pushNamed(context, '/profile');
           },
         ),
         // Adding a little padding to the right so it doesn't hug the screen edge
