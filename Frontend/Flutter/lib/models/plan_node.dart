@@ -248,6 +248,8 @@ class PlanSummary {
   final int nodeCount;
   final int completedNodeCount;
   final String? currentNodeTitle;
+  final String? currentNodeDescription;
+  final List<Resource> currentNodeResources;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -261,6 +263,8 @@ class PlanSummary {
     required this.nodeCount,
     required this.completedNodeCount,
     this.currentNodeTitle,
+    this.currentNodeDescription,
+    this.currentNodeResources = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -279,6 +283,10 @@ class PlanSummary {
       nodeCount: json['node_count'] as int? ?? 0,
       completedNodeCount: json['completed_node_count'] as int? ?? 0,
       currentNodeTitle: json['current_node_title'] as String?,
+      currentNodeDescription: json['current_node_description'] as String?,
+      currentNodeResources: (json['current_node_resources'] as List<dynamic>? ?? [])
+          .map((r) => Resource.fromJson(r as Map<String, dynamic>))
+          .toList(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

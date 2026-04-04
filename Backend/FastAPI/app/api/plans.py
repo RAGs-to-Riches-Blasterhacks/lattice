@@ -63,16 +63,14 @@ def _plan_summary(plan: Plan) -> PlanSummaryResponse:
     active_nodes = plan_service.get_active_path(plan)
     completed = sum(1 for n in active_nodes if n.status == NodeStatus.completed)
 
-    current_title = None
+    current_node = None
     if plan.current_node_id:
-        node = plan_service._find_node(plan, plan.current_node_id)
-        if node:
-            current_title = node.title
-    if current_title is None and active_nodes:
+        current_node = plan_service._find_node(plan, plan.current_node_id)
+    if current_node is None and active_nodes:
         # Fall back to first non-completed node on the active path
         for n in active_nodes:
             if n.status != NodeStatus.completed:
-                current_title = n.title
+                current_node = n
                 break
 
     return PlanSummaryResponse(
@@ -84,7 +82,9 @@ def _plan_summary(plan: Plan) -> PlanSummaryResponse:
         branch_count=len(plan.branches),
         node_count=len(active_nodes),
         completed_node_count=completed,
-        current_node_title=current_title,
+        current_node_title=current_node.title if current_node else None,
+        current_node_description=current_node.description if current_node else None,
+        current_node_resources=current_node.resources if current_node else [],
         created_at=plan.created_at,
         updated_at=plan.updated_at,
     )

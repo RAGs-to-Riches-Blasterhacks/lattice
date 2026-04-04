@@ -186,6 +186,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           currentTask: plan.currentNodeTitle ?? 'No active task',
           currentStep: plan.completedNodeCount,
           totalSteps: plan.nodeCount,
+          nodeDescription: plan.currentNodeDescription,
+          resources: plan.currentNodeResources,
           onTap: onTap,
         ),
       );
@@ -407,6 +409,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         currentTask: frontPlan.currentNodeTitle ?? 'No active task',
                         currentStep: frontPlan.completedNodeCount,
                         totalSteps: frontPlan.nodeCount,
+                        nodeDescription: frontPlan.currentNodeDescription,
+                        resources: frontPlan.currentNodeResources,
                         startExpanded: true,
                         onTap: _dismissExpandedCard,
                       ),
