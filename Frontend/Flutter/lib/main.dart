@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lattice/screens/roadmap.dart';
-import 'package:lattice/screens/profile_screen.dart';
-import 'package:lattice/screens/settings_screen.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
-import 'screens/home_screen.dart';
 
 void main() {
   runApp(const LatticeApp());
@@ -30,12 +27,8 @@ class LatticeApp extends StatelessWidget {
           ThemeData.dark().textTheme,
         ),
       ),
-      home: const HomeScreen(),
-      routes: {
-        '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        '/roadmap': (context) => const RoadmapScreen(),
-      },
+      initialRoute: AppNavigation.homeRoute,
+      onGenerateRoute: AppNavigation.onGenerateRoute,
     );
   }
 }
