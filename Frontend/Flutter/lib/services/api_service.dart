@@ -202,6 +202,20 @@ class ApiService {
     return Plan.fromJson(data);
   }
 
+  Future<Plan> addNote(
+    String planId,
+    String nodeId,
+    String content,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/plans/$planId/nodes/$nodeId/notes'),
+      headers: _headers,
+      body: jsonEncode({'content': content}),
+    );
+    final data = await _handleResponse(response);
+    return Plan.fromJson(data);
+  }
+
   Future<Plan> switchBranch(String planId, String branchId) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/plans/$planId/switch-branch'),

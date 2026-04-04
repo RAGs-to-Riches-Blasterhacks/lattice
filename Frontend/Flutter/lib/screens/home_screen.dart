@@ -7,6 +7,7 @@ import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
 import '../widgets/plan_card.dart';
+import '../widgets/quick_note_dialog.dart';
 
 // Default card colors when plans don't have a palette
 const _defaultColors = [
@@ -28,7 +29,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // GlobalKeys to measure the body Stack and the front card's render bounds.
   final GlobalKey _bodyStackKey = GlobalKey();
   final GlobalKey _frontCardKey = GlobalKey();
-  final GlobalKey<ChatOverlayState> _chatOverlayKey = GlobalKey<ChatOverlayState>();
+  final GlobalKey<ChatOverlayState> _chatOverlayKey =
+      GlobalKey<ChatOverlayState>();
 
   late List<int> _cardOrder;
 
@@ -192,6 +194,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  // ── Quick action handlers ──────────────────────────────────────────────────
+
+  Future<void> _onMarkComplete(String planId, String nodeId) async {
+    final provider = context.read<PlansProvider>();
+    await provider.markNodeComplete(planId, nodeId);
+  }
+
+  Future<void> _onAddNote(String planId, String nodeId) async {
+    final content = await QuickNoteDialog.show(context);
+    if (content == null || content.isEmpty) return;
+    if (!mounted) return;
+    final provider = context.read<PlansProvider>();
+    await provider.addNote(planId, nodeId, content);
+  }
+
   // ── Card stack builder ─────────────────────────────────────────────────────
 
   static const int _maxVisible = 5;
@@ -239,14 +256,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           totalSteps: plan.nodeCount,
           nodeDescription: plan.currentNodeDescription,
           resources: plan.currentNodeResources,
+          currentNodeId: plan.currentNodeId,
           onTap: onTap,
+          onMarkComplete: plan.currentNodeId != null
+              ? () => _onMarkComplete(plan.id, plan.currentNodeId!)
+              : null,
+          onAddNote: plan.currentNodeId != null
+              ? () => _onAddNote(plan.id, plan.currentNodeId!)
+              : null,
         ),
       );
     }
 
     if (isFront) {
       return AnimatedBuilder(
-        animation: Listenable.merge([_swipeController, _shiftController, _reverseShiftController]),
+        animation: Listenable.merge(
+            [_swipeController, _shiftController, _reverseShiftController]),
         builder: (context, _) {
           final double dy;
           if (_swipeController.isAnimating) {
@@ -268,7 +293,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final double scale;
           if (_reverseShiftController.isAnimating) {
             // Incoming card slides up from below the screen into front position.
-            final t = Curves.easeInOutQuart.transform(_reverseShiftController.value);
+            final t =
+                Curves.easeInOutQuart.transform(_reverseShiftController.value);
             top = frontTop + _swipeEndDy * (1.0 - t);
             scale = (1.0 - _scaleStep) + _scaleStep * t;
           } else if (_shiftController.isAnimating) {
@@ -324,7 +350,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           s = oldScale + (newScale - oldScale) * t;
         } else if (_reverseShiftController.isAnimating) {
           // Reverse swipe: cards shift one step further back.
-          final t = Curves.easeInOutQuart.transform(_reverseShiftController.value);
+          final t =
+              Curves.easeInOutQuart.transform(_reverseShiftController.value);
           final startTop = frontTop - (stackIndex - 1) * _stackGap;
           top = startTop + (newTop - startTop) * t;
           final startScale = 1.0 - (stackIndex - 1) * _scaleStep;
@@ -469,13 +496,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (_isFrontCardExpanded && plans.isNotEmpty) ...[
             () {
               final frontPlan = plans[_cardOrder[0]];
-              final color = _defaultColors[_cardOrder[0] % _defaultColors.length];
+              final color =
+                  _defaultColors[_cardOrder[0] % _defaultColors.length];
               return AnimatedPositioned(
                 duration: const Duration(milliseconds: 350),
                 curve: Curves.easeInOut,
                 top: _overlayExpanded ? 0 : _cardRect.top,
                 left: _overlayExpanded ? 0 : _cardRect.left,
-                right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
+                right: _overlayExpanded
+                    ? 0
+                    : (_bodySize.width > 0
+                        ? _bodySize.width - _cardRect.right
+                        : 0),
                 bottom: _planChatActive
                     ? (_bodySize.height > 0 ? _bodySize.height - 56 : 0)
                     : (_overlayExpanded ? 0 : overlayBottom),
@@ -499,15 +531,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           title: frontPlan.skillName,
                           description: frontPlan.description ?? '',
                           cardColor: color,
-                          currentTask: frontPlan.currentNodeTitle ?? 'No active task',
+                          currentTask:
+                              frontPlan.currentNodeTitle ?? 'No active task',
                           currentStep: frontPlan.completedNodeCount,
                           totalSteps: frontPlan.nodeCount,
                           nodeDescription: frontPlan.currentNodeDescription,
                           resources: frontPlan.currentNodeResources,
+                          currentNodeId: frontPlan.currentNodeId,
                           startExpanded: true,
                           onTap: _planChatActive
-                              ? () => _chatOverlayKey.currentState?.dismissChat()
+                              ? () =>
+                                  _chatOverlayKey.currentState?.dismissChat()
                               : _dismissExpandedCard,
+                          onMarkComplete: frontPlan.currentNodeId != null
+                              ? () => _onMarkComplete(
+                                  frontPlan.id, frontPlan.currentNodeId!)
+                              : null,
+                          onAddNote: frontPlan.currentNodeId != null
+                              ? () => _onAddNote(
+                                  frontPlan.id, frontPlan.currentNodeId!)
+                              : null,
                         ),
                       ),
                     ],

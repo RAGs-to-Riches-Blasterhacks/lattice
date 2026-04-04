@@ -82,6 +82,7 @@ def _plan_summary(plan: Plan) -> PlanSummaryResponse:
         branch_count=len(plan.branches),
         node_count=len(active_nodes),
         completed_node_count=completed,
+        current_node_id=current_node.node_id if current_node else None,
         current_node_title=current_node.title if current_node else None,
         current_node_description=current_node.description if current_node else None,
         current_node_resources=current_node.resources if current_node else [],
