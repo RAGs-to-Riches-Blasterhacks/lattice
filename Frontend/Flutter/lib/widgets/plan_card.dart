@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:lattice/themes/app_colors.dart'; // Adjust path if needed
+import 'package:lattice/models/plan_node.dart';
+import 'package:lattice/navigation/app_navigation.dart';
+import 'package:lattice/themes/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlanCard extends StatefulWidget {
+  final String? planId;
   final String title;
   final String description;
   final Color cardColor;
   final int streak;
+  final String currentTask;
+  final int currentStep;
+  final int totalSteps;
+  final String? nodeDescription;
+  final List<Resource> resources;
+
+  /// The node ID of the current (active) node for quick actions.
+  final String? currentNodeId;
   // Controls the aspect ratio of the card when it is collapsed.
   // 1.0 = Perfect Square, 1.8 = Widescreen Rectangle, 2.0 = Very Wide Rectangle
   final double collapsedAspectRatio;
@@ -16,16 +28,31 @@ class PlanCard extends StatefulWidget {
   // Called whenever the expanded state changes.
   final ValueChanged<bool>? onExpandChanged;
 
+  /// Called when the user taps "Mark Done" on the expanded card.
+  final VoidCallback? onMarkComplete;
+
+  /// Called when the user taps "Add Note" on the expanded card.
+  final VoidCallback? onAddNote;
+
   const PlanCard({
     super.key,
+    this.planId,
     required this.title,
     required this.description,
     required this.cardColor,
     this.streak = 0,
+    this.currentTask = '',
+    this.currentStep = 0,
+    this.totalSteps = 0,
+    this.nodeDescription,
+    this.resources = const [],
+    this.currentNodeId,
     this.collapsedAspectRatio = 1.45,
     this.onTap,
     this.startExpanded = false,
     this.onExpandChanged,
+    this.onMarkComplete,
+    this.onAddNote,
   });
 
   @override
@@ -68,7 +95,7 @@ class _PlanCardState extends State<PlanCard> {
           borderRadius: BorderRadius.circular(20.0),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -118,23 +145,33 @@ class _PlanCardState extends State<PlanCard> {
               color: const Color(0xFF4A7C94),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Text('TODO:', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text('8/30', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
+                const Text('TODO:',
+                    style: TextStyle(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12)),
+                Text('${widget.currentStep + 1}/${widget.totalSteps}',
+                    style: const TextStyle(
+                        color: AppColors.secondary, fontSize: 12)),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Play a round of deathmatch',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.background),
+              widget.currentTask,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppColors.background),
             ),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: Text('🔥 ${widget.streak}', style: const TextStyle(fontSize: 20)),
+            child: Text('🔥 ${widget.streak}',
+                style: const TextStyle(fontSize: 20)),
           ),
         ],
       ),
@@ -154,7 +191,10 @@ class _PlanCardState extends State<PlanCard> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, decoration: TextDecoration.underline),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                decoration: TextDecoration.underline),
           ),
           const SizedBox(height: 8),
           ...items.map((item) => Padding(
@@ -162,13 +202,110 @@ class _PlanCardState extends State<PlanCard> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Expanded(child: Text(item, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+                    const Text('• ',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Expanded(
+                        child: Text(item,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 14))),
                   ],
                 ),
               )),
         ],
       ),
+    );
+  }
+
+  Widget _buildResourcesCard(List<Resource> resources) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resources:',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                decoration: TextDecoration.underline),
+          ),
+          const SizedBox(height: 8),
+          ...resources.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
+                child: GestureDetector(
+                  onTap: () => launchUrl(Uri.parse(r.url),
+                      mode: LaunchMode.externalApplication),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${_resourceIcon(r.type)} ',
+                          style: const TextStyle(fontSize: 16)),
+                      Expanded(
+                        child: Text(
+                          r.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  String _resourceIcon(ResourceType type) {
+    switch (type) {
+      case ResourceType.youtube:
+        return '▶';
+      case ResourceType.article:
+        return '📄';
+      case ResourceType.book:
+        return '📖';
+      case ResourceType.exercise:
+        return '💪';
+      case ResourceType.event:
+        return '📅';
+    }
+  }
+
+  // ─── QUICK ACTION BUTTONS (Expanded State) ────────────────────────────────
+
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        if (widget.onMarkComplete != null)
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Mark Done',
+              color: const Color(0xFF4CAF50),
+              onTap: widget.onMarkComplete!,
+            ),
+          ),
+        if (widget.onMarkComplete != null && widget.onAddNote != null)
+          const SizedBox(width: 10),
+        if (widget.onAddNote != null)
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.note_add_outlined,
+              label: 'Add Note',
+              color: const Color(0xFF4A7C94),
+              onTap: widget.onAddNote!,
+            ),
+          ),
+      ],
     );
   }
 
@@ -190,14 +327,14 @@ class _PlanCardState extends State<PlanCard> {
         // Expanded forces the description to take up any empty vertical space,
         // which pins the TODO pill cleanly to the bottom of the container.
         Text(
-            widget.description,
-            overflow: TextOverflow.fade, // Gracefully fades out text if it's too long for the ratio
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 18,
-              height: 1.3,
-            ),
-          
+          widget.description,
+          overflow: TextOverflow
+              .fade, // Gracefully fades out text if it's too long for the ratio
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 18,
+            height: 1.3,
+          ),
         ),
         const SizedBox(height: 8),
         _buildTodoPill(),
@@ -209,7 +346,7 @@ class _PlanCardState extends State<PlanCard> {
 
   Widget _buildExpandedContent() {
     return Column(
-      mainAxisSize: MainAxisSize.min, 
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -223,38 +360,35 @@ class _PlanCardState extends State<PlanCard> {
                 fontSize: 24,
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down, size: 32, color: Colors.black87),
+            const Icon(Icons.keyboard_arrow_down,
+                size: 32, color: Colors.black87),
           ],
         ),
         const SizedBox(height: 12),
         Text(
           widget.description,
-          style: const TextStyle(color: Colors.black87, fontSize: 18, height: 1.3),
+          style:
+              const TextStyle(color: Colors.black87, fontSize: 18, height: 1.3),
         ),
         const SizedBox(height: 20),
-
         _buildTodoPill(),
-        
+        if (widget.currentNodeId != null &&
+            (widget.onMarkComplete != null || widget.onAddNote != null)) ...[
+          const SizedBox(height: 12),
+          _buildQuickActions(),
+        ],
         const SizedBox(height: 16),
-
-        _buildInfoCard(
-          title: 'What To Do:',
-          items: [
-            'Focus on cross-hair placement',
-            'Attempt counter strafing techniques learned from task 7/30',
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        _buildInfoCard(
-          title: 'Resources:',
-          items: [
-            'YouTube: Counter Strafing',
-            'Event: School of Mines Esports Valorant Championship',
-          ],
-        ),
+        if (widget.nodeDescription != null &&
+            widget.nodeDescription!.isNotEmpty)
+          _buildInfoCard(
+            title: 'What To Do:',
+            items: [widget.nodeDescription!],
+          ),
+        if (widget.resources.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildResourcesCard(widget.resources),
+        ],
         const SizedBox(height: 24),
-
         Center(
           child: Listener(
             onPointerDown: (_) => setState(() => _isButtonPressed = true),
@@ -281,13 +415,14 @@ class _PlanCardState extends State<PlanCard> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/roadmap');
+                    AppNavigation.goToRoadmap(context, planId: widget.planId);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B5B73),
                     foregroundColor: Colors.white,
                     shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                       side: const BorderSide(color: Colors.black, width: 4),
@@ -306,6 +441,88 @@ class _PlanCardState extends State<PlanCard> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A compact action button styled to match the PlanCard aesthetic.
+class _QuickActionButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_QuickActionButton> createState() => _QuickActionButtonState();
+}
+
+class _QuickActionButtonState extends State<_QuickActionButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => setState(() => _pressed = true),
+      onPointerUp: (_) => setState(() => _pressed = false),
+      onPointerCancel: (_) => setState(() => _pressed = false),
+      behavior: HitTestBehavior.opaque,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: _pressed ? 3 : 0,
+            bottom: _pressed ? 0 : 3,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: _pressed
+                  ? []
+                  : const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(0, 3),
+                        blurRadius: 0,
+                      ),
+                    ],
+              border: Border.all(
+                color: Colors.black,
+                width: 2.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  widget.icon,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  widget.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 
 // Note: Make sure to import your AppColors file here.
 import '../themes/app_colors.dart';
-
-import 'package:flutter/src/widgets/image.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -24,15 +23,12 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
       leading: IconButton(
         icon: const Icon(Icons.menu),
         iconSize: MediaQuery.sizeOf(context).width * 0.09,
-        
-        onPressed: () {
-          Scaffold.of(context).openDrawer();
-        },
+        onPressed: () => Scaffold.of(context).openDrawer(),
       ),
       
       // Middle: Logo
       title: GestureDetector(
-        onTap: () => Navigator.popUntil(context, (route) => route.isFirst),
+        onTap: () => AppNavigation.goToHome(context),
         child: Image.asset('assets/LOGO.png',
           width: MediaQuery.sizeOf(context).width * 0.36,
           fit: BoxFit.contain,
@@ -54,7 +50,7 @@ class TopNav extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           onPressed: () {
-            Navigator.pushNamed(context, '/profile');
+            AppNavigation.goToProfile(context);
           },
         ),
         // Adding a little padding to the right so it doesn't hug the screen edge

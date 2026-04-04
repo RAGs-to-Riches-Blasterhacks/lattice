@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/screens/profile_history_screen.dart';
 import 'package:lattice/screens/profile_social_screen.dart';
 import 'package:lattice/screens/profile_stats_screen.dart';
@@ -6,6 +7,7 @@ import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
+import 'package:provider/provider.dart';
 
 enum ProfileTab { stats, history, social }
 
@@ -33,8 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Title
-                const Text(
-                  'DisplayName\'s Profile', // add user's display name here!
+                Text(
+                  '${context.watch<AuthProvider>().user?.displayName ?? 'Your'}\'s Profile',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 32,

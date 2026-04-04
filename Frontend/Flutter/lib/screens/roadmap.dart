@@ -1,13 +1,13 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lattice/models/plan_node.dart';
+import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/branch_junction_widget.dart';
+import 'package:lattice/widgets/node_detail_sheet.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/topnav.dart';
+import 'package:provider/provider.dart';
 
 // ── Sealed roadmap item types ────────────────────────────────────────────────
 
@@ -27,7 +27,9 @@ final class _BranchJunctionItem extends _RoadmapItem {
 // ── Screen ───────────────────────────────────────────────────────────────────
 
 class RoadmapScreen extends StatefulWidget {
-  const RoadmapScreen({super.key});
+  final String? planId;
+
+  const RoadmapScreen({super.key, this.planId});
 
   @override
   State<RoadmapScreen> createState() => _RoadmapScreenState();
@@ -37,6 +39,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   Plan? _plan;
   late String _activeBranchId;
   final _inProgressKey = GlobalKey();
+  String? _error;
 
   @override
   void initState() {
@@ -45,48 +48,69 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   Future<void> _loadPlan() async {
-    final raw = await rootBundle.loadString('lib/mock-data/plan.json');
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-    final plan = Plan.fromJson(json);
-    setState(() {
-      _plan = plan;
-      _activeBranchId = plan.activeBranchId;
-    });
+    if (widget.planId == null) {
+      setState(() => _error = 'No plan ID provided');
+      return;
+    }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _inProgressKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 450),
-          curve: Curves.easeInOut,
-          alignment: 0.25,
-        );
-      }
-    });
+    try {
+      final plan = await context.read<PlansProvider>().getPlan(widget.planId!);
+      setState(() {
+        _plan = plan;
+        _activeBranchId = plan.activeBranchId;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _inProgressKey.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOut,
+            alignment: 0.25,
+          );
+        }
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
   }
 
   void _switchBranch(String branchId) {
     setState(() => _activeBranchId = branchId);
   }
 
-  /// Builds the ordered list of items to render for the currently active branch.
-  ///
-  /// Active path = ancestor nodes (if a child branch) + nodes on active branch.
-  /// After each node that is a divergence point, a [_BranchJunctionItem] is
-  /// inserted for every non-active branch that forks from it.
-  /// After the last ancestor node (divergence point), an additional junction is
-  /// inserted showing the parent branch's continuation (the "other side").
+  void _showNodeDetail(PlanNode node) {
+    final planId = widget.planId;
+    if (planId == null) return;
+    final provider = context.read<PlansProvider>();
+
+    NodeDetailSheet.show(
+      context,
+      node: node,
+      onStatusChange: (status) async {
+        await provider.logProgress(
+          planId,
+          node.nodeId,
+          status: status,
+        );
+        await _loadPlan();
+      },
+      onAddNote: (content) async {
+        await provider.addNote(planId, node.nodeId, content);
+        await _loadPlan();
+      },
+    );
+  }
+
   List<_RoadmapItem> _buildItems(Plan plan) {
     final activeBranch =
         plan.branches.firstWhere((b) => b.branchId == _activeBranchId);
 
-    // ── Build ordered active path ────────────────────────────────────────────
     final List<PlanNode> activePath;
 
     if (activeBranch.parentBranchId != null &&
         activeBranch.divergedFromNodeId != null) {
-      // Child branch: prepend ancestor nodes up to the divergence point.
       final parentNodes = plan.nodes
           .where((n) => n.branchId == activeBranch.parentBranchId)
           .toList()
@@ -111,13 +135,11 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
     }
 
-    // ── Insert junction items at divergence points ───────────────────────────
     final items = <_RoadmapItem>[];
 
     for (final node in activePath) {
       items.add(_NormalItem(node));
 
-      // Case A: other branches diverge FROM this node → show their first node.
       final siblings = plan.branches
           .where((b) =>
               b.divergedFromNodeId == node.nodeId &&
@@ -130,8 +152,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         items.add(_BranchJunctionItem(sibling, firstNode));
       }
 
-      // Case B: this is OUR divergence point from the parent branch →
-      // show the parent branch's continuation as a junction.
       if (activeBranch.divergedFromNodeId == node.nodeId) {
         final parentBranchId = activeBranch.parentBranchId!;
         final parentNodes = plan.nodes
@@ -160,12 +180,29 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       backgroundColor: AppColors.background,
       appBar: const TopNav(),
       drawer: const AppDrawer(),
-      
-      body: _plan == null
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
+      body: _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _loadPlan,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             )
-          : _buildList(_plan!),
+          : _plan == null
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.accent),
+                )
+              : _buildList(_plan!),
     );
   }
 
@@ -185,6 +222,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 node: node,
                 isLast: i == items.length - 1,
                 displayNumber: i + 1,
+                onTap: () => _showNodeDetail(node),
               ),
             _BranchJunctionItem(:final branch, :final firstNode) =>
               BranchJunctionWidget(

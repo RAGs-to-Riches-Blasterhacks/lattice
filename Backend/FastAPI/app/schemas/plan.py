@@ -112,5 +112,10 @@ class PlanSummaryResponse(BaseModel):
     active_branch_id: str
     branch_count: int
     node_count: int
+    completed_node_count: int
+    current_node_id: Optional[str] = None
+    current_node_title: Optional[str] = None
+    current_node_description: Optional[str] = None
+    current_node_resources: list[Resource] = []
     created_at: datetime
     updated_at: datetime

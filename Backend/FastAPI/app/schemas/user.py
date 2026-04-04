@@ -34,4 +34,5 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime] = None
+    friend_code: Optional[str] = None
     is_active: bool

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -56,11 +58,19 @@ class SettingsScreen extends StatelessWidget {
                 // Actions section
                 _buildSectionHeader('Actions'),
                 const SizedBox(height: 8),
-                _buildSettingsGroup(const [
-                  _SettingsItem(Icons.help_outline, 'Support/FAQ'),
-                  _SettingsItem(Icons.logout, 'Log Out'),
-                  _SettingsItem(Icons.delete_outline, 'Delete Account'),
-                ]),
+                _buildSettingsGroup(
+                  const [
+                    _SettingsItem(Icons.help_outline, 'Support/FAQ'),
+                    _SettingsItem(Icons.logout, 'Log Out'),
+                    _SettingsItem(Icons.delete_outline, 'Delete Account'),
+                  ],
+                  onTap: (label) {
+                    if (label == 'Log Out') {
+                      context.read<AuthProvider>().logout();
+                      Navigator.of(context).popUntil((r) => r.isFirst);
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -82,7 +92,10 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsGroup(List<_SettingsItem> items) {
+  Widget _buildSettingsGroup(
+    List<_SettingsItem> items, {
+    void Function(String label)? onTap,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.accent.withValues(alpha: 0.4),
@@ -91,22 +104,25 @@ class SettingsScreen extends StatelessWidget {
       child: Column(
         children: items
             .map(
-              (item) => Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(item.icon, color: AppColors.secondary, size: 24),
-                    const SizedBox(width: 16),
-                    Text(
-                      item.label,
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+              (item) => GestureDetector(
+                onTap: onTap != null ? () => onTap(item.label) : null,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(item.icon, color: AppColors.secondary, size: 24),
+                      const SizedBox(width: 16),
+                      Text(
+                        item.label,
+                        style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             )

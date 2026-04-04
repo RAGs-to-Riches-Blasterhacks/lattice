@@ -1,13 +1,14 @@
-from datetime import date, datetime
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.core.security import get_current_user
-from app.models.plan import Plan
+from app.models.plan import NodeStatus, Plan, PlanStatus
 from app.models.streak import Streak
 from app.models.user import User
-from app.schemas.streak import StreakResponse
+from app.schemas.streak import DailyTaskCount, StatsResponse, StreakResponse
 
 router = APIRouter(prefix="/streaks", tags=["streaks"])
 
@@ -73,6 +74,45 @@ async def get_my_streak(user: User = Depends(get_current_user)):
     """Get the current user's streak stats."""
     streak = await _get_or_create_streak(user)
     return _streak_response(streak)
+
+
+@router.get("/me/stats", response_model=StatsResponse)
+async def get_my_stats(user: User = Depends(get_current_user)):
+    """Aggregated stats: streak info, tasks/plans completed, and a 30-day
+    tasks-completed-per-day breakdown."""
+    streak = await _get_or_create_streak(user)
+    plans = await Plan.find(Plan.user_id == user.id).to_list()
+
+    cutoff = datetime.combine(date.today() - timedelta(days=29), datetime.min.time())
+    total_tasks_completed = 0
+    daily_counts: dict[date, int] = defaultdict(int)
+
+    for plan in plans:
+        for node in plan.nodes:
+            if node.status == NodeStatus.completed and node.completed_at is not None:
+                total_tasks_completed += 1
+                if node.completed_at >= cutoff:
+                    daily_counts[node.completed_at.date()] += 1
+
+    total_plans_completed = sum(
+        1 for p in plans if p.status == PlanStatus.completed
+    )
+
+    # Build the 30-day series (fill zeros for days with no completions)
+    today = date.today()
+    tasks_completed_by_day = [
+        DailyTaskCount(date=today - timedelta(days=i), count=daily_counts.get(today - timedelta(days=i), 0))
+        for i in range(29, -1, -1)
+    ]
+
+    return StatsResponse(
+        current_streak=streak.current_streak,
+        longest_streak=streak.longest_streak,
+        total_days_active=streak.total_days_active,
+        total_tasks_completed=total_tasks_completed,
+        total_plans_completed=total_plans_completed,
+        tasks_completed_by_day=tasks_completed_by_day,
+    )
 
 
 @router.post("/check-in", response_model=StreakResponse)
