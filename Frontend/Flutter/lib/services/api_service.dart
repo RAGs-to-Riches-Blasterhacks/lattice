@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:lattice/models/conversation.dart';
 import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/models/streak.dart';
+import 'package:lattice/models/user_stats.dart';
 import 'package:lattice/models/user.dart';
 
 class ApiException implements Exception {
@@ -314,6 +315,15 @@ class ApiService {
   }
 
   // ── Streaks ──────────────────────────────────────────────────────────────
+
+  Future<UserStats> getMyStats() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/streaks/me/stats'),
+      headers: _headers,
+    );
+    final data = await _handleResponse(response);
+    return UserStats.fromJson(data);
+  }
 
   Future<Streak> getMyStreak() async {
     final response = await http.get(

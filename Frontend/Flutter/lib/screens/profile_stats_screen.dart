@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lattice/models/streak.dart';
-import 'package:lattice/providers/plans_provider.dart';
+import 'package:lattice/models/user_stats.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:provider/provider.dart';
@@ -13,29 +12,27 @@ class ProfileStatsScreen extends StatefulWidget {
 }
 
 class _ProfileStatsScreenState extends State<ProfileStatsScreen> {
-  Streak? _streak;
+  UserStats? _stats;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadStreak();
+    _loadStats();
   }
 
-  Future<void> _loadStreak() async {
+  Future<void> _loadStats() async {
     try {
-      final streak = await context.read<ApiService>().getMyStreak();
-      if (mounted) setState(() => _streak = streak);
+      final stats = await context.read<ApiService>().getMyStats();
+      if (mounted) setState(() => _stats = stats);
     } catch (_) {
-      // Streak may not exist yet — that's fine
+      // Stats may not exist yet — that's fine
     }
     if (mounted) setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final plans = context.watch<PlansProvider>().plans;
-
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.accent),
@@ -46,18 +43,17 @@ class _ProfileStatsScreenState extends State<ProfileStatsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Streak row
           Row(
             children: [
               _StatTile(
                 label: 'Current Streak',
-                value: '${_streak?.currentStreak ?? 0}',
+                value: '${_stats?.currentStreak ?? 0}',
                 icon: Icons.local_fire_department,
               ),
               const SizedBox(width: 12),
               _StatTile(
                 label: 'Longest Streak',
-                value: '${_streak?.longestStreak ?? 0}',
+                value: '${_stats?.longestStreak ?? 0}',
                 icon: Icons.emoji_events,
               ),
             ],
@@ -67,16 +63,92 @@ class _ProfileStatsScreenState extends State<ProfileStatsScreen> {
             children: [
               _StatTile(
                 label: 'Days Active',
-                value: '${_streak?.totalDaysActive ?? 0}',
+                value: '${_stats?.totalDaysActive ?? 0}',
                 icon: Icons.calendar_today,
               ),
               const SizedBox(width: 12),
               _StatTile(
-                label: 'Total Plans',
-                value: '${plans.length}',
-                icon: Icons.map_outlined,
+                label: 'Tasks Done',
+                value: '${_stats?.totalTasksCompleted ?? 0}',
+                icon: Icons.check_circle_outline,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _StatTile(
+                label: 'Plans Completed',
+                value: '${_stats?.totalPlansCompleted ?? 0}',
+                icon: Icons.map_outlined,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _ActivityChart(days: _stats?.tasksCompletedByDay ?? []),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityChart extends StatelessWidget {
+  final List<DailyTaskCount> days;
+
+  const _ActivityChart({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    if (days.isEmpty) return const SizedBox.shrink();
+
+    final maxCount = days.fold<int>(0, (m, d) => d.count > m ? d.count : m);
+    final barMax = maxCount > 0 ? maxCount : 1;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tasks Completed (30 days)',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 80,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: days.map((day) {
+                final fraction = day.count / barMax;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0.5),
+                    child: FractionallySizedBox(
+                      heightFactor: day.count > 0 ? 0.1 + (0.9 * fraction) : 0.05,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: day.count > 0
+                              ? AppColors.accent.withValues(alpha: 0.4 + 0.6 * fraction)
+                              : AppColors.cardBorder,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
