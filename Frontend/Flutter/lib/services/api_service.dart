@@ -272,6 +272,47 @@ class ApiService {
     return Conversation.fromJson(data);
   }
 
+  // ── Friends ─────────────────────────────────────────────────────────────
+
+  Future<String> getMyFriendCode() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/friends/code'),
+      headers: _headers,
+    );
+    final data = await _handleResponse(response);
+    return data['friend_code'] as String;
+  }
+
+  Future<List<Map<String, dynamic>>> listFriends() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/friends'),
+      headers: _headers,
+    );
+    final data = await _handleResponse(response);
+    return (data['friends'] as List<dynamic>)
+        .map((f) => f as Map<String, dynamic>)
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> addFriend(String friendCode) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/friends/add'),
+      headers: _headers,
+      body: jsonEncode({'friend_code': friendCode}),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<void> removeFriend(String userId) async {
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/friends/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 204) {
+      await _handleResponse(response);
+    }
+  }
+
   // ── Streaks ──────────────────────────────────────────────────────────────
 
   Future<Streak> getMyStreak() async {

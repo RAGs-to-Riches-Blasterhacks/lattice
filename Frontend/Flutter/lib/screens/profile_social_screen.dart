@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
+
+// Rotating accent colors assigned to friends by index
+const _accentColors = [
+  Color(0xFF5FD3BC),
+  Color(0xFFFFB86B),
+  Color(0xFF89BBFE),
+  Color(0xFFE886C9),
+  Color(0xFF7ED99A),
+  Color(0xFFF4845F),
+];
 
 class ProfileSocialScreen extends StatefulWidget {
   const ProfileSocialScreen({super.key});
@@ -12,49 +24,19 @@ class ProfileSocialScreen extends StatefulWidget {
 }
 
 class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
-  static const String _myFriendCode = 'LATTICE-8X2P';
-
   final TextEditingController _friendCodeController = TextEditingController();
   bool _isAddFriendsExpanded = false;
 
-  final List<_FriendData> _friends = [
-    const _FriendData(
-      name: 'Kade Shockey',
-      handle: '@kirex',
-      streak: 8,
-      currentTask: 'Build an evening reading habit',
-      completedDays: 8,
-      totalDays: 30,
-      accentColor: Color(0xFF5FD3BC),
-    ),
-    const _FriendData(
-      name: 'Vincent Cordova',
-      handle: '@vlvc',
-      streak: 14,
-      currentTask: 'Ship a portfolio refresh',
-      completedDays: 18,
-      totalDays: 30,
-      accentColor: Color(0xFFFFB86B),
-    ),
-    const _FriendData(
-      name: 'Cece Housh',
-      handle: '@cecehoush',
-      streak: 5,
-      currentTask: 'Morning workout consistency',
-      completedDays: 8,
-      totalDays: 30,
-      accentColor: Color(0xFF89BBFE),
-    ),
-    const _FriendData(
-      name: 'Jeffer Ng',
-      handle: '@jefferng',
-      streak: 22,
-      currentTask: 'Daily system design practice',
-      completedDays: 24,
-      totalDays: 30,
-      accentColor: Color(0xFFE886C9),
-    ),
-  ];
+  String? _myFriendCode;
+  List<Map<String, dynamic>> _friends = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
   @override
   void dispose() {
@@ -62,8 +44,42 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final api = context.read<ApiService>();
+    try {
+      final results = await Future.wait([
+        api.getMyFriendCode(),
+        api.listFriends(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _myFriendCode = results[0] as String;
+        _friends = results[1] as List<Map<String, dynamic>>;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   void _copyFriendCode() {
-    Clipboard.setData(const ClipboardData(text: _myFriendCode));
+    if (_myFriendCode == null) return;
+    Clipboard.setData(ClipboardData(text: _myFriendCode!));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Friend code copied'),
@@ -72,7 +88,7 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
     );
   }
 
-  void _submitFriendCode() {
+  Future<void> _submitFriendCode() async {
     final code = _friendCodeController.text.trim();
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,22 +100,50 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Friend request sent with code $code'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    _friendCodeController.clear();
+    final api = context.read<ApiService>();
+    try {
+      await api.addFriend(code);
+      _friendCodeController.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Friend added!'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _loadData();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  void _removeFriend(String name) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$name removed from friends'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _removeFriend(String userId, String name) async {
+    final api = context.read<ApiService>();
+    try {
+      await api.removeFriend(userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$name removed from friends'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _loadData();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _openQrScanner() {
@@ -118,6 +162,33 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.activeTab),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _error!,
+              style: const TextStyle(color: Colors.redAccent),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _loadData,
+              child: const Text('Retry',
+                  style: TextStyle(color: AppColors.activeTab)),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -127,15 +198,41 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
           const SizedBox(height: 28),
           _buildFriendsHeader(),
           const SizedBox(height: 16),
-          ..._friends.map(
-            (friend) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _FriendTile(
-                friend: friend,
-                onRemove: () => _removeFriend(friend.name),
+          if (_friends.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  'No friends yet.\nShare your code to connect!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-            ),
-          ),
+            )
+          else
+            ...List.generate(_friends.length, (i) {
+              final f = _friends[i];
+              final accent = _accentColors[i % _accentColors.length];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _FriendTile(
+                  name: f['name'] as String? ?? '',
+                  handle: f['handle'] as String? ?? '',
+                  streak: f['streak'] as int? ?? 0,
+                  currentTask: f['current_task'] as String? ?? 'No active plan',
+                  completedDays: f['completed_days'] as int? ?? 0,
+                  totalDays: f['total_days'] as int? ?? 0,
+                  accentColor: accent,
+                  onRemove: () => _removeFriend(
+                    f['user_id'] as String,
+                    f['name'] as String? ?? 'Friend',
+                  ),
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -248,63 +345,65 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
             ],
           ),
           children: [
-            Center(
-              child: Container(
-                width: 210,
-                height: 210,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: AppColors.activeTab.withValues(alpha: 0.5),
-                    width: 1.5,
+            if (_myFriendCode != null) ...[
+              Center(
+                child: Container(
+                  width: 210,
+                  height: 210,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: AppColors.activeTab.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.activeTab.withValues(alpha: 0.14),
+                        Colors.white.withValues(alpha: 0.03),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.activeTab.withValues(alpha: 0.14),
-                      Colors.white.withValues(alpha: 0.03),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  padding: const EdgeInsets.all(18),
+                  child: QrImageView(
+                    data: _myFriendCode!,
+                    version: QrVersions.auto,
+                    size: 174,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.circle,
+                      color: AppColors.textPrimary,
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.circle,
+                      color: AppColors.textPrimary,
+                    ),
+                    backgroundColor: Colors.transparent,
                   ),
-                ),
-                padding: const EdgeInsets.all(18),
-                child: QrImageView(
-                  data: _myFriendCode,
-                  version: QrVersions.auto,
-                  size: 174,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.circle,
-                    color: AppColors.textPrimary,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.circle,
-                    color: AppColors.textPrimary,
-                  ),
-                  backgroundColor: Colors.transparent,
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _openQrScanner,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.activeTab,
-                  side: const BorderSide(color: AppColors.activeTab),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openQrScanner,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.activeTab,
+                    side: const BorderSide(color: AppColors.activeTab),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                  label: const Text(
+                    'Scan QR Code',
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
-                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                label: const Text(
-                  'Scan QR Code',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ],
             _buildFriendCodeSection(),
           ],
         ),
@@ -335,10 +434,10 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
           ),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  _myFriendCode,
-                  style: TextStyle(
+                  _myFriendCode ?? '...',
+                  style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
@@ -554,16 +653,29 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
 
 class _FriendTile extends StatelessWidget {
   const _FriendTile({
-    required this.friend,
+    required this.name,
+    required this.handle,
+    required this.streak,
+    required this.currentTask,
+    required this.completedDays,
+    required this.totalDays,
+    required this.accentColor,
     required this.onRemove,
   });
 
-  final _FriendData friend;
+  final String name;
+  final String handle;
+  final int streak;
+  final String currentTask;
+  final int completedDays;
+  final int totalDays;
+  final Color accentColor;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final double progressValue = friend.completedDays / friend.totalDays;
+    final double progressValue =
+        totalDays > 0 ? completedDays / totalDays : 0.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -586,11 +698,11 @@ class _FriendTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: friend.accentColor.withValues(alpha: 0.18),
+                backgroundColor: accentColor.withValues(alpha: 0.18),
                 child: Text(
-                  friend.name.characters.first,
+                  name.isNotEmpty ? name.characters.first : '?',
                   style: TextStyle(
-                    color: friend.accentColor,
+                    color: accentColor,
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
                   ),
@@ -602,7 +714,7 @@ class _FriendTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      friend.name,
+                      name,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 18,
@@ -611,7 +723,7 @@ class _FriendTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      friend.handle,
+                      handle,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -624,13 +736,13 @@ class _FriendTile extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: friend.accentColor.withValues(alpha: 0.16),
+                  color: accentColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '${friend.streak} streak',
+                  '$streak streak',
                   style: TextStyle(
-                    color: friend.accentColor,
+                    color: accentColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -656,13 +768,13 @@ class _FriendTile extends StatelessWidget {
                     children: [
                       _StatPill(
                         label: 'Current streak',
-                        value: '${friend.streak}',
-                        accentColor: friend.accentColor,
+                        value: '$streak',
+                        accentColor: accentColor,
                         icon: Icons.local_fire_department_rounded,
                       ),
                       _StatPill(
                         label: 'Progress',
-                        value: '${friend.completedDays}/${friend.totalDays}',
+                        value: '$completedDays/$totalDays',
                         accentColor: AppColors.activeTab,
                         icon: Icons.insights_rounded,
                       ),
@@ -680,7 +792,7 @@ class _FriendTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    friend.currentTask,
+                    currentTask,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 18,
@@ -694,14 +806,12 @@ class _FriendTile extends StatelessWidget {
                       value: progressValue,
                       minHeight: 10,
                       backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        friend.accentColor,
-                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${friend.completedDays}/${friend.totalDays} progress, with ${friend.streak} streak',
+                    '$completedDays/$totalDays progress, with $streak streak',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
@@ -875,24 +985,4 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
       ),
     );
   }
-}
-
-class _FriendData {
-  const _FriendData({
-    required this.name,
-    required this.handle,
-    required this.streak,
-    required this.currentTask,
-    required this.completedDays,
-    required this.totalDays,
-    required this.accentColor,
-  });
-
-  final String name;
-  final String handle;
-  final int streak;
-  final String currentTask;
-  final int completedDays;
-  final int totalDays;
-  final Color accentColor;
 }
