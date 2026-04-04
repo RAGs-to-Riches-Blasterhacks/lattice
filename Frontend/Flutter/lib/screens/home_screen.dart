@@ -360,22 +360,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
               bottom: _overlayExpanded ? 0 : overlayBottom,
               child: ClipRect(
-                child: Container(
-                  color: Colors.transparent,
-                  child: SingleChildScrollView(
-                    // Disable scrolling while the overlay is animating.
-                    physics: _overlayExpanded
-                        ? null
-                        : const NeverScrollableScrollPhysics(),
-                    child: PlanCard(
-                      title: _placeholderPlans[_cardOrder[0]].title,
-                      description: _placeholderPlans[_cardOrder[0]].description,
-                      cardColor: _placeholderPlans[_cardOrder[0]].color,
-                      startExpanded: true,
-                      // Tapping the expanded card shrinks the overlay back.
-                      onTap: _dismissExpandedCard,
+                child: Stack(
+                  children: [
+                    // Background fades in separately from the card content.
+                    Positioned.fill(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeInOut,
+                        opacity: _overlayExpanded ? 1.0 : 0.0,
+                        child: const ColoredBox(color: AppColors.background),
+                      ),
                     ),
-                  ),
+                    SingleChildScrollView(
+                      // Disable scrolling while the overlay is animating.
+                      physics: _overlayExpanded
+                          ? null
+                          : const NeverScrollableScrollPhysics(),
+                      child: PlanCard(
+                        title: _placeholderPlans[_cardOrder[0]].title,
+                        description: _placeholderPlans[_cardOrder[0]].description,
+                        cardColor: _placeholderPlans[_cardOrder[0]].color,
+                        startExpanded: true,
+                        // Tapping the expanded card shrinks the overlay back.
+                        onTap: _dismissExpandedCard,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
