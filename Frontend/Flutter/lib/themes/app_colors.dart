@@ -5,7 +5,7 @@ class AppColors {
 
   static const Color background = Color(0xFF070405);
   static const Color secondary = Color(0xFFFBFBF2);
-  static const Color accent = Color(0xFF64B5F6); // light blue
+  static const Color accent = Color(0xFF33658A); // light blue
 
   // Node status fill colors
   static const Color nodeNotStarted = Color(0xFF3A3A3A);
