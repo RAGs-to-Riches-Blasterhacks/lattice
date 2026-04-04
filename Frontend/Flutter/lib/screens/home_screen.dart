@@ -3,6 +3,7 @@ import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/plan_input_bar.dart';
 import 'package:lattice/widgets/topnav.dart';
+import '../widgets/plan_card.dart';
 
 // ── Placeholder plan data ────────────────────────────────────────────────────
 // Replace with real plan model once available.
@@ -321,6 +322,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const Spacer(),
             ],
           ),
+
+          // ── Expanding card overlay ──────────────────────────────────────────
+          // Starts at the front card's exact rect and animates to fill the body.
+          if (_isFrontCardExpanded)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeInOut,
+              top: _overlayExpanded ? 0 : _cardRect.top,
+              left: _overlayExpanded ? 0 : _cardRect.left,
+              right: _overlayExpanded ? 0 : (_bodySize.width > 0 ? _bodySize.width - _cardRect.right : 0),
+              bottom: _overlayExpanded ? 0 : overlayBottom,
+              child: ClipRect(
+                child: Container(
+                  color: Colors.transparent,
+                  child: SingleChildScrollView(
+                    // Disable scrolling while the overlay is animating.
+                    physics: _overlayExpanded
+                        ? null
+                        : const NeverScrollableScrollPhysics(),
+                    child: PlanCard(
+                      title: _placeholderPlans[_cardOrder[0]].title,
+                      description: _placeholderPlans[_cardOrder[0]].description,
+                      cardColor: _placeholderPlans[_cardOrder[0]].color,
+                      startExpanded: true,
+                      // Tapping the expanded card shrinks the overlay back.
+                      onTap: _dismissExpandedCard,
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           const PlanInputBar(),
         ],
