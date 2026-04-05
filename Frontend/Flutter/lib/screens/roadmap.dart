@@ -83,6 +83,32 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     }
   }
 
+  /// Reload plan data without closing the node-detail / chat overlay.
+  /// Updates _plan, _activeBranchId, and keeps _selectedNode in sync
+  /// with the refreshed node list so the overlay stays open.
+  Future<void> _refreshPlanQuietly() async {
+    if (widget.planId == null) return;
+    try {
+      final plan = await context.read<PlansProvider>().getPlan(widget.planId!);
+      if (!mounted) return;
+      setState(() {
+        _plan = plan;
+        _activeBranchId = plan.activeBranchId;
+        // Keep the overlay open — update _selectedNode to the matching node
+        // from the fresh plan data (it may now live on a new branch).
+        if (_selectedNode != null) {
+          final match = plan.nodes.cast<PlanNode?>().firstWhere(
+                (n) => n!.nodeId == _selectedNode!.nodeId,
+                orElse: () => null,
+              );
+          _selectedNode = match;
+        }
+      });
+    } catch (_) {
+      // Silently ignore — the user can still dismiss and retry.
+    }
+  }
+
   void _switchBranch(String branchId) {
     setState(() => _activeBranchId = branchId);
   }
@@ -359,7 +385,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                     setState(() => _planCardCollapsed = false);
                     _loadPlan();
                   },
-                  onPlanUpdated: _loadPlan,
+                  onPlanUpdated: _refreshPlanQuietly,
                 ),
               ),
           ],
