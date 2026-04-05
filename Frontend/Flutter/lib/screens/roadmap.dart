@@ -316,6 +316,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                     resources: _selectedNode!.resources,
                     notes: _selectedNode!.notes,
                     currentNodeId: _selectedNode!.nodeId,
+                    nodeCompleted: _selectedNode!.status == NodeStatus.completed,
                     startExpanded: true,
                     onClose: _dismissNodeOverlay,
                     onMarkComplete: () {

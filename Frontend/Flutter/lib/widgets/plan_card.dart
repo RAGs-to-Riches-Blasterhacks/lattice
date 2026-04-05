@@ -34,6 +34,9 @@ class PlanCard extends StatefulWidget {
   /// Called when the user taps "Mark Done" on the expanded card.
   final VoidCallback? onMarkComplete;
 
+  /// When true, hides the "Mark Done" button (node is already completed).
+  final bool nodeCompleted;
+
   /// Called when the user taps "Add Note" on the expanded card.
   final VoidCallback? onAddNote;
 
@@ -60,6 +63,7 @@ class PlanCard extends StatefulWidget {
     this.startExpanded = false,
     this.onExpandChanged,
     this.onMarkComplete,
+    this.nodeCompleted = false,
     this.onAddNote,
     this.onClose,
   });
@@ -74,6 +78,7 @@ class _PlanCardState extends State<PlanCard>
   late Animation<double> _anim;
   bool _isExpanded = false;
   bool _isButtonPressed = false;
+  bool _markedDone = false;
 
   @override
   void initState() {
@@ -295,7 +300,7 @@ class _PlanCardState extends State<PlanCard>
       children: [
         // ── Quick actions (static, not scrolled) ────────────────────────────
         if (widget.currentNodeId != null &&
-            (widget.onMarkComplete != null || widget.onAddNote != null)) ...[
+            (_showMarkDone || widget.onAddNote != null)) ...[
           const SizedBox(height: 12),
           _buildQuickActions(),
         ],
@@ -470,26 +475,26 @@ class _PlanCardState extends State<PlanCard>
 
   // ─── QUICK ACTION BUTTONS ─────────────────────────────────────────────────
 
+  bool get _showMarkDone =>
+      widget.onMarkComplete != null && !widget.nodeCompleted && !_markedDone;
+
   Widget _buildQuickActions() {
     return Row(
       children: [
-        if (widget.onMarkComplete != null)
+        if (_showMarkDone)
           Expanded(
             child: _QuickActionButton(
               icon: Icons.check_circle_outline_rounded,
               label: 'Mark Done',
               color: const Color(0xFF4CAF50),
               onTap: () {
-                // 1. Execute your existing completion logic
+                setState(() => _markedDone = true);
                 widget.onMarkComplete!();
-                
-                // 2. Trigger the fireworks overlay
-                // (Make sure to import 'celebration.dart' at the top of this file)
                 CelebrationOverlay.show(context);
               },
             ),
           ),
-        if (widget.onMarkComplete != null && widget.onAddNote != null)
+        if (_showMarkDone && widget.onAddNote != null)
           const SizedBox(width: 10),
         if (widget.onAddNote != null)
           Expanded(
