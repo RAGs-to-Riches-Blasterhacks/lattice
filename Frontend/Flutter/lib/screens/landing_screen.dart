@@ -280,8 +280,7 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _goToSignUp() {
-    // TODO: Implement sign up flow or navigate to sign up screen
-    AppNavigation.goToLogin(context);
+    AppNavigation.goToSignup(context);
   }
 
   @override

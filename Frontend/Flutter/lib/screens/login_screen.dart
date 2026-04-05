@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
@@ -14,8 +15,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
-  bool _isRegister = false;
   bool _loading = false;
   String? _error;
 
@@ -23,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -31,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (email.isEmpty || password.isEmpty) return;
-    if (_isRegister && _nameController.text.trim().isEmpty) return;
 
     setState(() {
       _loading = true;
@@ -40,14 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final auth = context.read<AuthProvider>();
     try {
-      if (_isRegister) {
-        await auth.register(
-          email: email,
-          password: password,
-          displayName: _nameController.text.trim(),
-        );
-      } else {
-        await auth.login(email: email, password: password);
+      await auth.login(email: email, password: password);
+      if (mounted) {
+        await AppNavigation.goToHome(context);
       }
 
       if (mounted) {
@@ -74,26 +66,20 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Image.asset('assets/LOGO.png', width: 200),
               const SizedBox(height: 40),
-
-              if (_isRegister) ...[
-                _buildField(_nameController, 'Display Name'),
-                const SizedBox(height: 12),
-              ],
               _buildField(_emailController, 'Email',
                   keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 12),
               _buildField(_passwordController, 'Password', obscure: true),
               const SizedBox(height: 8),
-
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                    style:
+                        const TextStyle(color: Colors.redAccent, fontSize: 14),
                   ),
                 ),
-
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -116,22 +102,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: AppColors.secondary,
                           ),
                         )
-                      : Text(
-                          _isRegister ? 'Create Account' : 'Log In',
-                          style: const TextStyle(
+                      : const Text(
+                          'Log In',
+                          style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                 ),
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () =>
-                    setState(() => _isRegister = !_isRegister),
-                child: Text(
-                  _isRegister
-                      ? 'Already have an account? Log in'
-                      : 'Need an account? Register',
-                  style: const TextStyle(color: AppColors.textSecondary),
+                onPressed: () => AppNavigation.goToSignup(context),
+                child: const Text(
+                  'Need an account? Sign up',
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
               ),
             ],

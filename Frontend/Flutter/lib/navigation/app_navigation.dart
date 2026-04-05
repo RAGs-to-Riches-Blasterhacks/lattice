@@ -5,6 +5,7 @@ import 'package:lattice/screens/login_screen.dart';
 import 'package:lattice/screens/profile_screen.dart';
 import 'package:lattice/screens/roadmap.dart';
 import 'package:lattice/screens/settings_screen.dart';
+import 'package:lattice/screens/signup_screen.dart';
 
 class AppNavigation {
   AppNavigation._();
@@ -12,6 +13,7 @@ class AppNavigation {
   static const String landingRoute = '/landing';
   static const String homeRoute = '/home';
   static const String loginRoute = '/login';
+  static const String signupRoute = '/signup';
   static const String profileRoute = '/profile';
   static const String settingsRoute = '/settings';
   static const String roadmapRoute = '/roadmap';
@@ -20,6 +22,7 @@ class AppNavigation {
     final Widget page = switch (settings.name) {
       landingRoute => const LandingScreen(),
       loginRoute => const LoginScreen(),
+      signupRoute => const SignupScreen(),
       profileRoute => const ProfileScreen(),
       settingsRoute => const SettingsScreen(),
       roadmapRoute => RoadmapScreen(planId: settings.arguments as String?),
@@ -52,12 +55,20 @@ class AppNavigation {
     );
   }
 
+  static Future<void> goToLanding(BuildContext context) {
+    return _replaceCurrent(context, landingRoute);
+  }
+
   static Future<void> goToHome(BuildContext context) {
     return _replaceStack(context, homeRoute);
   }
 
   static Future<void> goToLogin(BuildContext context) {
     return _replaceCurrent(context, loginRoute);
+  }
+
+  static Future<void> goToSignup(BuildContext context) {
+    return _replaceCurrent(context, signupRoute);
   }
 
   static Future<void> goToProfile(BuildContext context) {
