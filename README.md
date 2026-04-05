@@ -20,10 +20,10 @@ Health check: `GET http://localhost:8000/health`
 ```bash
 cd Frontend/Flutter
 flutter pub get
-flutter run
+flutter run --dart-define=FIREBASE_API_KEY=<your-firebase-web-api-key>
 ```
 
-By default the app connects to `http://127.0.0.1:8000/api`.
+By default the app connects to `http://127.0.0.1:8000/api`. The `FIREBASE_API_KEY` enables automatic token refresh — without it the app still works but users will need to re-login after 1 hour.
 
 ## Deploying to Railway (Backend)
 
@@ -88,10 +88,12 @@ Note your Railway URL — you'll need it for the APK build.
 
 ```bash
 cd Frontend/Flutter
-flutter build apk --release --dart-define=API_URL=https://<your-app>.railway.app/api
+flutter build apk --release \
+  --dart-define=API_URL=https://<your-app>.railway.app/api \
+  --dart-define=FIREBASE_API_KEY=<your-firebase-web-api-key>
 ```
 
-Replace `<your-app>.railway.app` with your actual Railway domain.
+Replace `<your-app>.railway.app` with your actual Railway domain and `<your-firebase-web-api-key>` with your Firebase Web API key (found in the Firebase Console under Project Settings → General). The API key is required for automatic token refresh — without it, users will be logged out after 1 hour when their Firebase ID token expires.
 
 ### 3. Find the APK
 

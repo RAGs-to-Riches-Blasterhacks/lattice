@@ -9,6 +9,9 @@ import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:provider/provider.dart';
 
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
+
 void main() {
   runApp(const LatticeApp());
 }
@@ -45,6 +48,7 @@ class LatticeApp extends StatelessWidget {
             ThemeData.dark().textTheme,
           ),
         ),
+        navigatorObservers: [routeObserver],
         home: const _AuthGate(),
         onGenerateRoute: AppNavigation.onGenerateRoute,
       ),

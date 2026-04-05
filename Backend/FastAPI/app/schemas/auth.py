@@ -1,5 +1,8 @@
+from typing import Optional
+
 from pydantic import BaseModel, EmailStr
 
+from app.models.user import LocationPrefs
 from app.schemas.user import UserResponse
 
 
@@ -7,6 +10,8 @@ class EmailRegisterRequest(BaseModel):
     email: EmailStr
     password: str
     display_name: str
+    timezone: Optional[str] = None
+    location: Optional[LocationPrefs] = None
 
 
 class EmailLoginRequest(BaseModel):

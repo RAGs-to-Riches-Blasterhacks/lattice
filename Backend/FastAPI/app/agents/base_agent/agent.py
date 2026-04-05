@@ -25,6 +25,15 @@ class NodeOptionOutput(BaseModel):
     description: str = ""
 
 
+class ResourceOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: str
+    title: str
+    url: str = ""
+    duration_minutes: int = 0
+    is_optional: bool = False
+
+
 class PlanNodeOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     node_number: int
@@ -33,6 +42,7 @@ class PlanNodeOutput(BaseModel):
     skill_level: str
     type_of_task: str
     options: list[NodeOptionOutput] = Field(default_factory=list)
+    resources: list[ResourceOutput] = Field(default_factory=list)
 
 
 class SuccessLevelsOutput(BaseModel):
@@ -88,15 +98,6 @@ class PlannerOutput(BaseModel):
     palette: PaletteOutput = Field(default_factory=PaletteOutput)
 
 
-class ResourceOutput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: str
-    title: str
-    url: str = ""
-    duration_minutes: int = 0
-    is_optional: bool = False
-
-
 class ResearcherOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task: str
@@ -106,6 +107,17 @@ class ResearcherOutput(BaseModel):
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "")
 EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "")
+
+
+def _is_url_reachable(url: str) -> bool:
+    """HEAD-check a URL, return True if it responds 2xx/3xx within 5s."""
+    if not url:
+        return False
+    try:
+        resp = httpx.head(url, follow_redirects=True, timeout=5)
+        return resp.status_code < 400
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +206,15 @@ Rules:
 - Write success_levels as things a real person would say
 - Each step should leave the user with something tangible they built, solved, or can demonstrate
 
+Resources per node:
+- Add 2-5 resources per node with real, specific recommendations
+- type must be one of: youtube, article, book, exercise, event
+- For youtube/article/book: include a specific, real title. Include the URL if you know it, otherwise leave url as empty string
+- For exercise: describe a concrete hands-on practice task in the title (url can be empty string)
+- Mix resource types across nodes — don't just list articles for every node
+- duration_minutes: estimate how long the resource takes to consume (0 if unknown)
+- is_optional: mark supplementary resources as true, core ones as false
+
 Palette rules:
 - Pick 5 colors: primary, secondary, accent, background, text
 - Colors should match the vibe/energy of the skill being learned
@@ -233,17 +254,21 @@ def find_youtube_videos(topic: str) -> dict:
         )
         resp.raise_for_status()
         items = resp.json().get("items", [])
-        resources = [
-            {
+        resources = []
+        for i, item in enumerate(items):
+            vid = item.get("id", {}).get("videoId")
+            if not vid:
+                continue
+            url = f"https://youtube.com/watch?v={vid}"
+            if not _is_url_reachable(url):
+                continue
+            resources.append({
                 "type": "youtube",
                 "title": item["snippet"]["title"],
-                "url": f"https://youtube.com/watch?v={item['id']['videoId']}",
+                "url": url,
                 "duration_minutes": None,
                 "is_optional": i >= 3,
-            }
-            for i, item in enumerate(items)
-            if item.get("id", {}).get("videoId")
-        ]
+            })
         return {"resources": resources}
     except Exception as e:
         return {"resources": [], "error": str(e)}
@@ -271,16 +296,18 @@ def find_articles(topic: str) -> dict:
         )
         resp.raise_for_status()
         items = resp.json().get("items", [])
-        resources = [
-            {
+        resources = []
+        for i, item in enumerate(items):
+            url = item.get("link", "")
+            if not _is_url_reachable(url):
+                continue
+            resources.append({
                 "type": "article",
                 "title": item["title"],
-                "url": item["link"],
+                "url": url,
                 "duration_minutes": None,
                 "is_optional": i >= 3,
-            }
-            for i, item in enumerate(items)
-        ]
+            })
         return {"resources": resources}
     except Exception as e:
         return {"resources": [], "error": str(e)}
@@ -307,17 +334,20 @@ def find_books(topic: str) -> dict:
         )
         resp.raise_for_status()
         items = resp.json().get("items", [])
-        resources = [
-            {
+        resources = []
+        for i, item in enumerate(items):
+            if "volumeInfo" not in item:
+                continue
+            url = item["volumeInfo"].get("infoLink", "")
+            if url and not _is_url_reachable(url):
+                continue
+            resources.append({
                 "type": "book",
                 "title": item["volumeInfo"].get("title", "Unknown Title"),
-                "url": item["volumeInfo"].get("infoLink", ""),
+                "url": url,
                 "duration_minutes": None,
                 "is_optional": i >= 2,
-            }
-            for i, item in enumerate(items)
-            if "volumeInfo" in item
-        ]
+            })
         return {"resources": resources}
     except Exception as e:
         return {"resources": [], "error": str(e)}
@@ -413,6 +443,8 @@ def find_local_events(topic: str, city: str, state: str, country: str) -> dict:
                 })
                 continue
 
+        if not _is_url_reachable(url):
+            continue
         resources.append({
             "type": "event",
             "title": item.get("title", ""),
@@ -439,6 +471,11 @@ researcher_agent = LlmAgent(
 - include_articles=true → find_articles
 - include_books=true → find_books
 - include_local_events=true → find_local_events
+
+## User context
+Location: {user_city?}, {user_state?}, {user_country?} | Location opted in: {user_location_opted_in?}
+
+When include_local_events=true and the user has opted in to location (user_location_opted_in is "True"), pass their city, state, and country to find_local_events. If user_location_opted_in is not "True" or the location values are "unknown", skip find_local_events.
 
 If include_extra_homework=true, add 2-3 hands-on exercises (type="exercise", url="").
 Write a 3-5 sentence friendly guide for approaching this task.""",
@@ -632,6 +669,8 @@ async def persist_plan(state: dict) -> dict:
         should_know_next=plan_data.get("success_levels", {}).get("should_know_next", []),
     )
     plan.current_node_id = nodes[0].node_id if nodes else None
+    if nodes:
+        nodes[0].status = "in_progress"
     plan.updated_at = datetime.utcnow()
     await plan.save()
 
@@ -674,12 +713,11 @@ root_agent = LlmAgent(
 Name: {user_name?} | Timezone: {user_timezone?} | Location: {user_city?}, {user_state?}, {user_country?}
 
 ## Scope & safety
-You are ONLY a learning plan companion. You help users figure out what they want to learn and build a plan for it.
+You are a learning companion. Your core job is helping users learn new skills and build plans, but you're also happy to help them find events, resources, workshops, or anything else that supports their growth.
 
-- You MUST refuse any request not related to skill-building or learning plans. Politely redirect: "I'm all about helping you learn new things — what skill are you interested in picking up?"
 - You MUST refuse requests involving NSFW content, illegal activities (weapons, explosives, drugs, hacking for malicious purposes), or anything harmful. Say something like: "That's not something I can help with. What's something you've been wanting to learn?"
-- Do NOT roleplay, generate creative fiction, answer general trivia, or act as a general-purpose assistant. You build learning plans.
-- If a user tries to sneak prohibited content into a skill request, refuse the specific content and offer to help with a legitimate alternative.
+- If a user tries to sneak prohibited content into a request, refuse the specific content and offer to help with a legitimate alternative.
+- If a user asks about events, resources, or activities near them — help them out! Use their location data and the researcher_agent's tools. You don't need to tie everything back to a formal plan.
 
 ## Critical workflow (follow these steps IN ORDER):
 1. Chat naturally to learn what skill they want, their goal, and how much time they have (days_per_week, minutes_per_day). Ask ONE question at a time. Don't over-question — if they give you enough to work with, get to building.
@@ -687,11 +725,13 @@ You are ONLY a learning plan companion. You help users figure out what they want
 3. You MUST call the save_complete_plan tool. This is REQUIRED — do NOT skip this step. The tool reads from session state, you do not need to pass arguments.
 4. After save_complete_plan succeeds, reply to the user with a short, excited summary of what they'll learn. Mention a few highlights from the roadmap. Get them hyped to start.
 
+## Location-aware resources
+If {user_location_opted_in?} is "True" and the user's city is not "unknown", you have their location. Use it to find local events whenever relevant — both during plan creation and when the user just wants to explore what's happening nearby. Don't ask the user about their location — you already have it from their profile.
+
 ## Rules
 - NEVER output JSON, structured data, or raw tool results to the user. Your responses must always be natural language.
-- ALWAYS call save_complete_plan after the sub-agents finish. The plan is NOT saved until you call this tool.
+- ALWAYS call save_complete_plan after the sub-agents finish building a plan. The plan is NOT saved until you call this tool.
 - Be warm and casual. Short responses. Match the user's energy.
-- Don't ask about resource preferences or location unless they bring it up.
 """,
     tools=[save_complete_plan],
     sub_agents=[planner_agent, researcher_agent],
