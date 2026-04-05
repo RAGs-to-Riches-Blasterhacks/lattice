@@ -87,6 +87,9 @@ class _SignupScreenState extends State<SignupScreen> {
         password: password,
         displayName: displayName,
       );
+      if (mounted) {
+        await AppNavigation.goToHome(context);
+      }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

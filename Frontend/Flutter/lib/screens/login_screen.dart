@@ -38,6 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     try {
       await auth.login(email: email, password: password);
+      if (mounted) {
+        await AppNavigation.goToHome(context);
+      }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
