@@ -16,14 +16,27 @@
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0.95rem 1.4rem;
   background: color-mix(in srgb, var(--color-surface-dark) 94%, transparent);
   backdrop-filter: blur(10px);
 }
 
+.topbar__tagline {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text-light) 72%, transparent);
+  font-size: 0.82rem;
+  letter-spacing: 0.14rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .menu-button {
-  display: inline-flex;
+  display: none;
   flex-direction: column;
   justify-content: center;
   gap: 0.28rem;
@@ -116,6 +129,7 @@
 
 .hero-copy {
   display: grid;
+  width: 100%;
   justify-items: center;
   gap: 1rem;
   padding: 5.2rem 0 2.8rem;
@@ -131,15 +145,30 @@
 }
 
 .hero-copy h1 {
-  max-width: 40rem;
-  margin: 0;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   font-size: clamp(2rem, 4vw, 3.2rem);
   line-height: 1.16;
   letter-spacing: 0.04rem;
 }
 
+.hero-copy__line {
+  display: block;
+  text-align: center;
+}
+
+.hero-copy__line--primary {
+  white-space: nowrap;
+}
+
 .store-buttons {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: center;
   gap: 1rem;
@@ -559,6 +588,19 @@
     padding-inline: 1rem;
   }
 
+  .topbar__tagline {
+    font-size: 0.72rem;
+    letter-spacing: 0.1rem;
+  }
+
+  .hero-copy h1 {
+    width: 100%;
+  }
+
+  .hero-copy__line--primary {
+    white-space: normal;
+  }
+
   .steps-layout {
     grid-template-columns: 1fr;
   }
@@ -581,6 +623,10 @@
 @media (max-width: 640px) {
   .topbar {
     padding-inline: 1rem;
+  }
+
+  .topbar__tagline {
+    display: none;
   }
 
   .hero-copy {

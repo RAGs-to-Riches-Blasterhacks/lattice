@@ -170,6 +170,8 @@ function App() {
           <span />
         </button>
 
+        <p className="topbar__tagline">Skill development, structured for momentum</p>
+
         <a className="brand" href="#hero" aria-label="Lattice home">
           <BrandLogo />
         </a>
@@ -179,8 +181,12 @@ function App() {
       <div className="starfield" />
 
         <div className="hero-copy">
-          <p className="eyebrow">Skill development, structured for momentum</p>
-          <h1>Lets progress through your skill development. Download Lattice Today!</h1>
+          <h1>
+            <span className="hero-copy__line hero-copy__line--primary">
+              Lets progress through your skill development
+            </span>
+            <span className="hero-copy__line">Download Lattice Today!</span>
+          </h1>
 
           <div className="store-buttons">
             <StoreBadge badge={storeBadges.googlePlay} />
