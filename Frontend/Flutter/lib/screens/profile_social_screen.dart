@@ -243,7 +243,10 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: const Color(0xFF00C9C8).withValues(alpha: 0.4),
+          width: 2,
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -263,7 +266,8 @@ class _ProfileSocialScreenState extends State<ProfileSocialScreen> {
           title: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.activeTab.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
@@ -681,7 +685,10 @@ class _FriendTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: const Color(0xFF00C9C8).withValues(alpha: 0.4),
+          width: 2,
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(

@@ -12,7 +12,9 @@ class ProfileHistoryScreen extends StatelessWidget {
     final plans = context
         .watch<PlansProvider>()
         .plans
-        .where((p) => p.status == PlanStatus.completed || p.status == PlanStatus.abandoned)
+        .where((p) =>
+            p.status == PlanStatus.completed ||
+            p.status == PlanStatus.abandoned)
         .toList();
 
     if (plans.isEmpty) {
@@ -48,7 +50,10 @@ class _PlanHistoryTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(
+            color: const Color(0xFF00C9C8).withValues(alpha: 0.4),
+            width: 2,
+          ),
         ),
         child: Row(
           children: [
