@@ -1,0 +1,60 @@
+:root {
+  --color-bg-top: #33658a;
+  --color-bg-bottom: #070405;
+  --color-surface-dark: #070405;
+  --color-text-light: #fbfbf2;
+  --color-text-muted: rgba(251, 251, 242, 0.78);
+  --color-divider: rgba(251, 251, 242, 0.34);
+  --color-card-dark: #0a090d;
+  --color-card-light: #f9f2e8;
+  --color-ink: #2b2b2b;
+  --color-link-soft: rgba(251, 251, 242, 0.86);
+  --shadow-soft: 0 12px 25px rgba(7, 4, 5, 0.18);
+  --shadow-strong: 0 18px 30px rgba(7, 4, 5, 0.24);
+
+  font-family:
+    'Avenir Next', 'Montserrat', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-light);
+  background: var(--color-bg-bottom);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-bg-bottom);
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+#root {
+  min-height: 100vh;
+}

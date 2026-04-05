@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Jeffer Ng",
+    "fallbackLetter": "J",
+    "photo": "jeffer-ng.jpg",
+    "school": "Mines Student",
+    "tone": "ocean",
+    "gravatar": "",
+    "linkedin": "https://www.linkedin.com/in/jefferng/",
+    "github": "https://github.com/jefferng"
+  },
+  {
+    "name": "Vincent Cordova",
+    "fallbackLetter": "V",
+    "photo": "vincent-cordova.jpg",
+    "school": "Mines Student",
+    "tone": "graphite",
+    "gravatar": "https://gravatar.com/vlvcdev",
+    "linkedin": "https://www.linkedin.com/in/vlvcdev/",
+    "github": "https://github.com/Vlvcdev"
+  },
+  {
+    "name": "Cece Housh",
+    "fallbackLetter": "C",
+    "photo": "cece-housh.JPG",
+    "school": "DU Student",
+    "tone": "sunset",
+    "gravatar": "https://gravatar.com/cecehoush",
+    "linkedin": "https://www.linkedin.com/in/cecehoush/",
+    "github": "https://github.com/cecehoush"
+  },
+  {
+    "name": "Kade Shockey",
+    "fallbackLetter": "K",
+    "photo": "kade-shockey.png",
+    "school": "DU Student",
+    "tone": "cloud",
+    "gravatar": "https://gravatar.com/kadeshockey",
+    "linkedin": "https://www.linkedin.com/in/kade-shockey/",
+    "github": "https://github.com/kirex0"
+  }
+]
