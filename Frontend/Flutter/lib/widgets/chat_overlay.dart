@@ -112,23 +112,6 @@ class ChatOverlayState extends State<ChatOverlay>
   }
 
   @override
-  void didUpdateWidget(ChatOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // If we left plan context (card collapsed externally), reset chat.
-    if (oldWidget.planTitle != null && widget.planTitle == null && _chatActive) {
-      _planChatAnim.reverse();
-      _overlayAnim.reverse().then((_) {
-        if (mounted) {
-          setState(() {
-            _messages.clear();
-            _conversationId = null;
-          });
-        }
-      });
-    }
-  }
-
-  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();

@@ -47,7 +47,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   // Node detail overlay state
   PlanNode? _selectedNode;
   bool _planCardCollapsed = false;
-  bool _planNeedsRefresh = false;
 
   @override
   void initState() {
@@ -66,19 +65,31 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       setState(() {
         _plan = plan;
         _activeBranchId = plan.activeBranchId;
-      });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = _inProgressKey.currentContext;
-        if (ctx != null) {
-          Scrollable.ensureVisible(
-            ctx,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOut,
-            alignment: 0.25,
-          );
+        // Keep selected node in sync with fresh plan data.
+        if (_selectedNode != null) {
+          final freshNode = plan.nodes.cast<PlanNode?>().firstWhere(
+                (n) => n!.nodeId == _selectedNode!.nodeId,
+                orElse: () => null,
+              );
+          _selectedNode = freshNode;
         }
       });
+
+      // Only auto-scroll when no node is selected (chat not open).
+      if (_selectedNode == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _inProgressKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeInOut,
+              alignment: 0.25,
+            );
+          }
+        });
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     }
@@ -96,13 +107,10 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   void _dismissNodeOverlay() {
-    final needsRefresh = _planNeedsRefresh;
-    _planNeedsRefresh = false;
     setState(() {
       _selectedNode = null;
       _planCardCollapsed = false;
     });
-    if (needsRefresh) _loadPlan();
   }
 
   /// Recursively walks up the parent chain to build the full active path.
@@ -361,12 +369,8 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                       setState(() => _planCardCollapsed = true),
                   onPlanChatDismissed: () {
                     setState(() => _planCardCollapsed = false);
-                    if (_planNeedsRefresh) {
-                      _planNeedsRefresh = false;
-                      _loadPlan();
-                    }
                   },
-                  onPlanUpdated: () => _planNeedsRefresh = true,
+                  onPlanUpdated: () => _loadPlan(),
                 ),
               ),
           ],
