@@ -72,7 +72,9 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 (n) => n!.nodeId == _selectedNode!.nodeId,
                 orElse: () => null,
               );
-          _selectedNode = freshNode;
+          if (freshNode != null) {
+            _selectedNode = freshNode;
+          }
         }
       });
 
