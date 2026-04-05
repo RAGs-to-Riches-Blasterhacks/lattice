@@ -43,7 +43,8 @@ class SettingsScreen extends StatelessWidget {
                 _buildSettingsGroup(const [
                   _SettingsItem(Icons.person_outline, 'Account Management'),
                   _SettingsItem(Icons.notifications_outlined, 'Notifications'),
-                  _SettingsItem(Icons.accessibility_new_outlined, 'Accessibility Features'),
+                  _SettingsItem(Icons.accessibility_new_outlined,
+                      'Accessibility Features'),
                   _SettingsItem(Icons.translate, 'Language'),
                 ]),
                 const SizedBox(height: 24),

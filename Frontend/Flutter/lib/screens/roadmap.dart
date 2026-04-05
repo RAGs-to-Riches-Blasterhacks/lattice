@@ -91,8 +91,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       barrierColor: Colors.black54,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: SingleChildScrollView(
           child: PlanCard(
             planId: planId,

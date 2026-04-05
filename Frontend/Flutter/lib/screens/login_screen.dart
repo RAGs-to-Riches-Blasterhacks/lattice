@@ -44,12 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         // Option A: If using named routes
-        Navigator.pushReplacementNamed(context, '/home'); 
+        Navigator.pushReplacementNamed(context, '/home');
 
         // Option B: If using standard MaterialPageRoute
         // Navigator.pushReplacement(
         //   context,
-        //   MaterialPageRoute(builder: (context) => const HomeScreen()), 
+        //   MaterialPageRoute(builder: (context) => const HomeScreen()),
         // );
       }
     } on ApiException catch (e) {
@@ -76,63 +76,63 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-              Image.asset('assets/LOGO.png', width: 200),
-              const SizedBox(height: 40),
-              _buildField(_emailController, 'Email',
-                  keyboardType: TextInputType.emailAddress),
-              const SizedBox(height: 12),
-              _buildField(_passwordController, 'Password', obscure: true),
-              const SizedBox(height: 8),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _error!,
-                    style:
-                        const TextStyle(color: Colors.redAccent, fontSize: 14),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.secondary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  Image.asset('assets/LOGO.png', width: 200),
+                  const SizedBox(height: 40),
+                  _buildField(_emailController, 'Email',
+                      keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _buildField(_passwordController, 'Password', obscure: true),
+                  const SizedBox(height: 8),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 14),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.secondary,
+                              ),
+                            )
+                          : const Text(
+                              'Log In',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
                     ),
                   ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.secondary,
-                          ),
-                        )
-                      : const Text(
-                          'Log In',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => AppNavigation.goToSignup(context),
+                    child: const Text(
+                      'Need an account? Sign up',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => AppNavigation.goToSignup(context),
-                child: const Text(
-                  'Need an account? Sign up',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-        ),
         ],
       ),
     );
