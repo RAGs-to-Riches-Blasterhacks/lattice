@@ -433,8 +433,7 @@ class ApiService {
   }
 
   Future<Streak> getMyStreak() async {
-    request() =>
-        http.get(Uri.parse('$_baseUrl/streaks/me'), headers: _headers);
+    request() => http.get(Uri.parse('$_baseUrl/streaks/me'), headers: _headers);
     final response = await request();
     final data = await _handleResponse(response, retry: request);
     return Streak.fromJson(data);

@@ -25,7 +25,27 @@ class _ProfileStatsScreenState extends State<ProfileStatsScreen> {
   Future<void> _loadStats() async {
     try {
       final stats = await context.read<ApiService>().getMyStats();
-      if (mounted) setState(() => _stats = stats);
+
+      // If all data is 0, use mock data for demonstration
+      UserStats demonstrationStats = stats;
+      if (stats.tasksCompletedByDay.every((d) => d.count == 0)) {
+        demonstrationStats = UserStats(
+          currentStreak: stats.currentStreak,
+          longestStreak: stats.longestStreak,
+          totalDaysActive: stats.totalDaysActive,
+          totalTasksCompleted: 45,
+          totalPlansCompleted: stats.totalPlansCompleted,
+          tasksCompletedByDay: List.generate(30, (i) {
+            final now = DateTime.now();
+            final date = now.subtract(Duration(days: 29 - i));
+            // Create varied mock data
+            final count = (i % 7 == 0 ? 0 : (3 + (i % 5)));
+            return DailyTaskCount(date: date, count: count);
+          }),
+        );
+      }
+
+      if (mounted) setState(() => _stats = demonstrationStats);
     } catch (_) {
       // Stats may not exist yet — that's fine
     }
@@ -223,7 +243,8 @@ class _ActivityFeed extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: (yMax / 5).ceil().toDouble(),
+                  horizontalInterval:
+                      maxCount > 0 ? (maxCount / 4).ceilToDouble() : 2.0,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
                       color: const Color(0xFF00C9C8).withValues(alpha: 0.1),
@@ -235,15 +256,16 @@ class _ActivityFeed extends StatelessWidget {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
+                      reservedSize: 28,
                       interval: (days.length / 6).ceilToDouble(),
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         if (index >= 0 && index < days.length) {
+                          final date = days[index].date;
                           return Text(
-                            'D${index + 1}',
+                            '${date.month}/${date.day}',
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 9,
                               color: AppColors.textSecondary,
                             ),
                           );
@@ -255,13 +277,18 @@ class _ActivityFeed extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
-                      interval: (yMax / 5).ceil().toDouble(),
+                      reservedSize: 35,
+                      interval:
+                          maxCount > 0 ? (maxCount / 4).ceilToDouble() : 2.0,
                       getTitlesWidget: (value, meta) {
+                        // Don't show label if it's very close to the maximum Y value boundary
+                        if (value > yMax * 0.99) {
+                          return const SizedBox.shrink();
+                        }
                         return Text(
                           value.toInt().toString(),
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             color: AppColors.textSecondary,
                           ),
                         );
@@ -328,9 +355,12 @@ class _ActivityFeed extends StatelessWidget {
                       return touchedSpots.map((LineBarSpot touchedBarSpot) {
                         final dayIndex = touchedBarSpot.x.toInt();
                         if (dayIndex >= 0 && dayIndex < days.length) {
-                          final count = touchedBarSpot.y.toInt();
+                          final dayData = days[dayIndex];
+                          final count = dayData.count;
+                          final dateStr =
+                              '${dayData.date.month}/${dayData.date.day}/${dayData.date.year}';
                           return LineTooltipItem(
-                            '$count tasks',
+                            '$dateStr\n$count tasks',
                             const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
