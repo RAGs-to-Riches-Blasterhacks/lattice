@@ -450,6 +450,11 @@ researcher_agent = LlmAgent(
 - include_books=true → find_books
 - include_local_events=true → find_local_events
 
+## User context
+Location: {user_city?}, {user_state?}, {user_country?} | Location opted in: {user_location_opted_in?}
+
+When include_local_events=true and the user has opted in to location (user_location_opted_in is "True"), pass their city, state, and country to find_local_events. If user_location_opted_in is not "True" or the location values are "unknown", skip find_local_events.
+
 If include_extra_homework=true, add 2-3 hands-on exercises (type="exercise", url="").
 Write a 3-5 sentence friendly guide for approaching this task.""",
     tools=[find_youtube_videos, find_articles, find_books, find_local_events],
@@ -698,6 +703,9 @@ You are ONLY a learning plan companion. You help users figure out what they want
 2. Once you have enough info, transfer to planner_agent. It will build the roadmap and a color palette, storing everything in session state automatically.
 3. You MUST call the save_complete_plan tool. This is REQUIRED — do NOT skip this step. The tool reads from session state, you do not need to pass arguments.
 4. After save_complete_plan succeeds, reply to the user with a short, excited summary of what they'll learn. Mention a few highlights from the roadmap. Get them hyped to start.
+
+## Location-aware resources
+If {user_location_opted_in?} is "True" and the user's city is not "unknown", include local events when delegating to researcher_agent by setting include_local_events=true. Don't ask the user about their location — you already have it from their profile.
 
 ## Rules
 - NEVER output JSON, structured data, or raw tool results to the user. Your responses must always be natural language.
