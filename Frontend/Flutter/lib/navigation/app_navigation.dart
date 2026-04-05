@@ -3,6 +3,7 @@ import 'package:lattice/screens/home_screen.dart';
 import 'package:lattice/screens/landing_screen.dart';
 import 'package:lattice/screens/login_screen.dart';
 import 'package:lattice/screens/profile_screen.dart';
+import 'package:lattice/screens/projects.dart';
 import 'package:lattice/screens/roadmap.dart';
 import 'package:lattice/screens/settings_screen.dart';
 import 'package:lattice/screens/signup_screen.dart';
@@ -16,6 +17,7 @@ class AppNavigation {
   static const String signupRoute = '/signup';
   static const String profileRoute = '/profile';
   static const String settingsRoute = '/settings';
+  static const String projectsRoute = '/projects';
   static const String roadmapRoute = '/roadmap';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -25,6 +27,7 @@ class AppNavigation {
       signupRoute => const SignupScreen(),
       profileRoute => const ProfileScreen(),
       settingsRoute => const SettingsScreen(),
+      projectsRoute => const ProjectsScreen(),
       roadmapRoute => RoadmapScreen(planId: settings.arguments as String?),
       _ => const HomeScreen(),
     };
@@ -77,6 +80,10 @@ class AppNavigation {
 
   static Future<void> goToSettings(BuildContext context) {
     return _replaceCurrent(context, settingsRoute);
+  }
+
+  static Future<void> goToProjects(BuildContext context) {
+    return _replaceCurrent(context, projectsRoute);
   }
 
   static Future<void> goToRoadmap(BuildContext context, {String? planId}) {
