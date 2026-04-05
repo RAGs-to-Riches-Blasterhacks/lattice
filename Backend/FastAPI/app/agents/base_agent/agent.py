@@ -25,6 +25,15 @@ class NodeOptionOutput(BaseModel):
     description: str = ""
 
 
+class ResourceOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: str
+    title: str
+    url: str = ""
+    duration_minutes: int = 0
+    is_optional: bool = False
+
+
 class PlanNodeOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     node_number: int
@@ -33,6 +42,7 @@ class PlanNodeOutput(BaseModel):
     skill_level: str
     type_of_task: str
     options: list[NodeOptionOutput] = Field(default_factory=list)
+    resources: list[ResourceOutput] = Field(default_factory=list)
 
 
 class SuccessLevelsOutput(BaseModel):
@@ -86,15 +96,6 @@ class PlannerOutput(BaseModel):
     success_levels: SuccessLevelsOutput
     nodes: list[PlanNodeOutput]
     palette: PaletteOutput = Field(default_factory=PaletteOutput)
-
-
-class ResourceOutput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: str
-    title: str
-    url: str = ""
-    duration_minutes: int = 0
-    is_optional: bool = False
 
 
 class ResearcherOutput(BaseModel):
@@ -193,6 +194,15 @@ Rules:
 - Write descriptions like a knowledgeable friend who's done this before, not a textbook
 - Write success_levels as things a real person would say
 - Each step should leave the user with something tangible they built, solved, or can demonstrate
+
+Resources per node:
+- Add 2-5 resources per node with real, specific recommendations
+- type must be one of: youtube, article, book, exercise, event
+- For youtube/article/book: include a specific, real title. Include the URL if you know it, otherwise leave url as empty string
+- For exercise: describe a concrete hands-on practice task in the title (url can be empty string)
+- Mix resource types across nodes — don't just list articles for every node
+- duration_minutes: estimate how long the resource takes to consume (0 if unknown)
+- is_optional: mark supplementary resources as true, core ones as false
 
 Palette rules:
 - Pick 5 colors: primary, secondary, accent, background, text
@@ -632,6 +642,8 @@ async def persist_plan(state: dict) -> dict:
         should_know_next=plan_data.get("success_levels", {}).get("should_know_next", []),
     )
     plan.current_node_id = nodes[0].node_id if nodes else None
+    if nodes:
+        nodes[0].status = "in_progress"
     plan.updated_at = datetime.utcnow()
     await plan.save()
 

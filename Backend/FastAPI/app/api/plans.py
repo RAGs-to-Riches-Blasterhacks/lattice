@@ -242,13 +242,29 @@ async def log_progress(
         ActivityEntry(date=date_cls.today(), note=body.note)
     )
 
+    active_nodes = None
     if body.status == NodeStatus.completed:
         node.completed_at = datetime.utcnow()
+        # Advance current_node_id to the next node on the active path
+        active_nodes = plan_service.get_active_path(plan)
+        found_current = False
+        for n in active_nodes:
+            if n.node_id == node_id:
+                found_current = True
+                continue
+            if found_current and n.status != NodeStatus.completed:
+                plan.current_node_id = n.node_id
+                n.status = NodeStatus.in_progress
+                break
+        else:
+            if found_current:
+                plan.current_node_id = None
 
     # Auto-complete the plan when all active-branch nodes are done
     plan_completed = False
     if body.status == NodeStatus.completed:
-        active_nodes = plan_service.get_active_path(plan)
+        if not active_nodes:
+            active_nodes = plan_service.get_active_path(plan)
         if active_nodes and all(
             n.status == NodeStatus.completed for n in active_nodes
         ):

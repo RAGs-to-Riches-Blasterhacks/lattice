@@ -16,11 +16,15 @@ class PlansProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> fetchPlans() async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
+    final isRefresh = _plans.isNotEmpty;
+    if (!isRefresh) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
       _plans = await _api.listPlans();
+      _error = null;
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {

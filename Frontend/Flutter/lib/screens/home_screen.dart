@@ -8,6 +8,7 @@ import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
+import '../main.dart' show routeObserver;
 import '../widgets/plan_card.dart';
 import '../widgets/quick_note_dialog.dart';
 
@@ -27,7 +28,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, RouteAware {
   // GlobalKeys to measure the body Stack and the front card's render bounds.
   final GlobalKey _bodyStackKey = GlobalKey();
   final GlobalKey _frontCardKey = GlobalKey();
@@ -91,11 +93,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _swipeController.dispose();
     _shiftController.dispose();
     _reverseShiftController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Returning to home from another screen — refresh data.
+    context.read<PlansProvider>().fetchPlans();
+    _loadStreak();
   }
 
   Future<void> _loadStreak() async {
