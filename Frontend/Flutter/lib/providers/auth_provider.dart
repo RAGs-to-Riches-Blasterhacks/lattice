@@ -60,11 +60,15 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String displayName,
+    String? timezone,
+    Map<String, dynamic>? location,
   }) async {
     final auth = await _api.register(
       email: email,
       password: password,
       displayName: displayName,
+      timezone: timezone,
+      location: location,
     );
     await _saveSession(auth);
   }

@@ -5,7 +5,7 @@ from firebase_admin import auth as firebase_auth
 
 from app.core.config import settings
 from app.core.firebase import get_firebase_app
-from app.models.user import User
+from app.models.user import LocationPrefs, User
 
 # Firebase REST API endpoints
 _FIREBASE_SIGN_IN_URL = (
@@ -29,7 +29,13 @@ async def _exchange_custom_token(custom_token: str) -> dict:
     return resp.json()
 
 
-async def register_email(email: str, password: str, display_name: str) -> tuple[dict, User]:
+async def register_email(
+    email: str,
+    password: str,
+    display_name: str,
+    timezone: str | None = None,
+    location: LocationPrefs | None = None,
+) -> tuple[dict, User]:
     """Create a Firebase user, persist to MongoDB, return (tokens, user)."""
     get_firebase_app()
 
@@ -41,11 +47,16 @@ async def register_email(email: str, password: str, display_name: str) -> tuple[
     )
 
     # Persist to MongoDB
-    user = User(
-        firebase_uid=fb_user.uid,
-        email=email,
-        display_name=display_name,
-    )
+    user_kwargs: dict = {
+        "firebase_uid": fb_user.uid,
+        "email": email,
+        "display_name": display_name,
+    }
+    if timezone:
+        user_kwargs["timezone"] = timezone
+    if location:
+        user_kwargs["location"] = location
+    user = User(**user_kwargs)
     await user.insert()
 
     # Generate a custom token, then exchange it for an ID token

@@ -134,15 +134,20 @@ class ApiService {
     required String email,
     required String password,
     required String displayName,
+    String? timezone,
+    Map<String, dynamic>? location,
   }) async {
+    final body = <String, dynamic>{
+      'email': email,
+      'password': password,
+      'display_name': displayName,
+    };
+    if (timezone != null) body['timezone'] = timezone;
+    if (location != null) body['location'] = location;
     final response = await http.post(
       Uri.parse('$_baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'display_name': displayName,
-      }),
+      body: jsonEncode(body),
     );
     final data = await _handleResponse(response);
     return AuthResponse.fromJson(data);

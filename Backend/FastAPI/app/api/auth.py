@@ -38,6 +38,8 @@ async def register(body: EmailRegisterRequest):
             email=body.email,
             password=body.password,
             display_name=body.display_name,
+            timezone=body.timezone,
+            location=body.location,
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Registration failed")
