@@ -9,3 +9,6 @@ __pycache__/
 .env
 firebase-service-account.json
 *.db
+*.keystore
+*.jks
+key.properties

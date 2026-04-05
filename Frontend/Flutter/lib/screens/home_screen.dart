@@ -433,32 +433,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 6),
-              AnimatedOpacity(
-                opacity: _isFrontCardExpanded ? 0.0 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    margin: const EdgeInsets.only(
-                        right: 40.0, top: 6.0, bottom: 6.0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14.0, vertical: 4.0),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade700,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      '•••',
-                      style: TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 16,
-                        letterSpacing: 2,
-                        height: 1.0,
+              if (plans.length >= _maxVisible)
+                AnimatedOpacity(
+                  opacity: _isFrontCardExpanded ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      margin: const EdgeInsets.only(
+                          right: 40.0, top: 6.0, bottom: 6.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14.0, vertical: 4.0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade700,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '•••',
+                        style: TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 16,
+                          letterSpacing: 2,
+                          height: 1.0,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 6),
               if (plansProvider.loading)
                 const Expanded(

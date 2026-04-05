@@ -3,7 +3,8 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/branch_junction_widget.dart';
-import 'package:lattice/widgets/node_detail_sheet.dart';
+import 'package:lattice/widgets/plan_card.dart';
+import 'package:lattice/widgets/quick_note_dialog.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/topnav.dart';
@@ -85,21 +86,48 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     if (planId == null) return;
     final provider = context.read<PlansProvider>();
 
-    NodeDetailSheet.show(
-      context,
-      node: node,
-      onStatusChange: (status) async {
-        await provider.logProgress(
-          planId,
-          node.nodeId,
-          status: status,
-        );
-        await _loadPlan();
-      },
-      onAddNote: (content) async {
-        await provider.addNote(planId, node.nodeId, content);
-        await _loadPlan();
-      },
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: SingleChildScrollView(
+          child: PlanCard(
+            planId: planId,
+            title: node.title,
+            description: '',
+            cardColor: Color(_plan!.primaryColorValue),
+            currentTask: node.title,
+            currentStep: node.nodeNumber - 1,
+            totalSteps: _plan!.nodes.length,
+            nodeDescription:
+                node.description.isNotEmpty ? node.description : null,
+            resources: node.resources,
+            notes: node.notes,
+            currentNodeId: node.nodeId,
+            startExpanded: true,
+            onClose: () => Navigator.of(dialogContext).pop(),
+            onMarkComplete: () {
+              Navigator.of(dialogContext).pop();
+              provider
+                  .logProgress(planId, node.nodeId, status: 'completed')
+                  .then((_) {
+                if (mounted) _loadPlan();
+              });
+            },
+            onAddNote: () {
+              QuickNoteDialog.show(context).then((content) {
+                if (content == null || content.isEmpty) return;
+                provider.addNote(planId, node.nodeId, content).then((_) {
+                  if (mounted) _loadPlan();
+                });
+              });
+            },
+          ),
+        ),
+      ),
     );
   }
 
