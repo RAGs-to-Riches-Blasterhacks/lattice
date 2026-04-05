@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/action_button.dart';
+import 'package:lattice/widgets/nav_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'celebration.dart';
 
@@ -77,7 +79,6 @@ class _PlanCardState extends State<PlanCard>
   late AnimationController _controller;
   late Animation<double> _anim;
   bool _isExpanded = false;
-  bool _isButtonPressed = false;
   bool _markedDone = false;
 
   @override
@@ -134,7 +135,7 @@ class _PlanCardState extends State<PlanCard>
           borderRadius: BorderRadius.circular(20.0),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.white.withValues(alpha: 0.8),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -417,56 +418,11 @@ class _PlanCardState extends State<PlanCard>
         // ── View Roadmap button (static, not scrolled) ───────────────────────
         if (widget.onClose == null) ...[
           const SizedBox(height: 8),
-          Center(
-            child: Listener(
-              onPointerDown: (_) => setState(() => _isButtonPressed = true),
-              onPointerUp: (_) => setState(() => _isButtonPressed = false),
-              onPointerCancel: (_) => setState(() => _isButtonPressed = false),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: _isButtonPressed ? 6 : 0,
-                  bottom: _isButtonPressed ? 0 : 6,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: _isButtonPressed
-                        ? []
-                        : const [
-                            BoxShadow(
-                              color: Colors.black,
-                              offset: Offset(0, 6),
-                              blurRadius: 0,
-                            ),
-                          ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      AppNavigation.goToRoadmap(context, planId: widget.planId);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2B5B73),
-                      foregroundColor: Colors.white,
-                      shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        side: const BorderSide(color: Colors.black, width: 4),
-                      ),
-                    ),
-                    child: const Text(
-                      'View Roadmap',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          NavButton(
+            label: 'View Roadmap',
+            onPressed: () {
+              AppNavigation.goToRoadmap(context, planId: widget.planId);
+            },
           ),
         ],
       ],
@@ -483,7 +439,7 @@ class _PlanCardState extends State<PlanCard>
       children: [
         if (_showMarkDone)
           Expanded(
-            child: _QuickActionButton(
+            child: ActionButton(
               icon: Icons.check_circle_outline_rounded,
               label: 'Mark Done',
               color: const Color(0xFF4CAF50),
@@ -498,7 +454,7 @@ class _PlanCardState extends State<PlanCard>
           const SizedBox(width: 10),
         if (widget.onAddNote != null)
           Expanded(
-            child: _QuickActionButton(
+            child: ActionButton(
               icon: Icons.note_add_outlined,
               label: 'Add Note',
               color: const Color(0xFF4A7C94),
@@ -599,84 +555,3 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   }
 }
 
-/// A compact action button styled to match the PlanCard aesthetic.
-class _QuickActionButton extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  State<_QuickActionButton> createState() => _QuickActionButtonState();
-}
-
-class _QuickActionButtonState extends State<_QuickActionButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
-      onPointerUp: (_) => setState(() => _pressed = false),
-      onPointerCancel: (_) => setState(() => _pressed = false),
-      behavior: HitTestBehavior.opaque,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Padding(
-          padding: EdgeInsets.only(
-            top: _pressed ? 3 : 0,
-            bottom: _pressed ? 0 : 3,
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: widget.color,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: _pressed
-                  ? []
-                  : const [
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(0, 3),
-                        blurRadius: 0,
-                      ),
-                    ],
-              border: Border.all(
-                color: Colors.black,
-                width: 2.5,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  widget.icon,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

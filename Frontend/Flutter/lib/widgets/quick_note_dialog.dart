@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/action_button.dart';
 
 /// A minimal dialog for quickly entering a note.
 class QuickNoteDialog extends StatefulWidget {
@@ -107,28 +108,11 @@ class _QuickNoteDialogState extends State<QuickNoteDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Save Note',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+            ActionButton(
+              icon: Icons.save_outlined,
+              label: 'Save Note',
+              color: AppColors.accent,
+              onTap: _submit,
             ),
           ],
         ),

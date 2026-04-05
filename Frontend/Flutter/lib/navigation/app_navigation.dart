@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lattice/screens/action_button_test_screen.dart';
 import 'package:lattice/screens/home_screen.dart';
 import 'package:lattice/screens/landing_screen.dart';
 import 'package:lattice/screens/login_screen.dart';
@@ -19,9 +20,11 @@ class AppNavigation {
   static const String settingsRoute = '/settings';
   static const String projectsRoute = '/projects';
   static const String roadmapRoute = '/roadmap';
+  static const String actionButtonTestRoute = '/action-button-test';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final Widget page = switch (settings.name) {
+      actionButtonTestRoute => const ActionButtonTestScreen(),
       landingRoute => const LandingScreen(),
       loginRoute => const LoginScreen(),
       signupRoute => const SignupScreen(),
@@ -88,6 +91,10 @@ class AppNavigation {
 
   static Future<void> goToRoadmap(BuildContext context, {String? planId}) {
     return Navigator.of(context).pushNamed(roadmapRoute, arguments: planId);
+  }
+
+  static Future<void> goToActionButtonTest(BuildContext context) {
+    return Navigator.of(context).pushNamed(actionButtonTestRoute);
   }
 
   static Future<void> _replaceCurrent(BuildContext context, String routeName) {

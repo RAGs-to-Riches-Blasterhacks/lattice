@@ -4,20 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
-
-/// CTA button gradient, matching Figma.
-class _LandingGradients {
-  static const LinearGradient cta = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [
-      Color(0xFF00C9C8),
-      Color(0xFF2EE6B0),
-      Color(0xFF8FF5A8),
-    ],
-    stops: [0.0, 0.55, 1.0],
-  );
-}
+import 'package:lattice/widgets/nav_button.dart';
 
 class _MockLandingCard {
   const _MockLandingCard({
@@ -404,12 +391,12 @@ class _LandingScreenState extends State<LandingScreen>
                   padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
                   child: Column(
                     children: [
-                      _GradientPillButton(
+                      NavButton(
                         label: 'Log In',
                         onPressed: _goToLogin,
                       ),
                       const SizedBox(height: 14),
-                      _GradientPillButton(
+                      NavButton(
                         label: 'Sign Up',
                         onPressed: _goToSignUp,
                       ),
@@ -671,48 +658,3 @@ class _LandingPlanCard extends StatelessWidget {
   }
 }
 
-class _GradientPillButton extends StatelessWidget {
-  const _GradientPillButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(999),
-        child: Ink(
-          height: 52,
-          decoration: BoxDecoration(
-            gradient: _LandingGradients.cta,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF00C9C8).withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
