@@ -4,6 +4,14 @@ class AppColors {
   AppColors._();
 
   static const Color background = Color(0xFF070405);
+
+  // Gradient background matching landing screen (deep blue → black)
+  static const LinearGradient gradientBackground = LinearGradient(
+    begin: Alignment.bottomCenter,
+    end: Alignment.topCenter,
+    colors: [Color(0xFF0B1F3A), Color(0xFF050A14), Color(0xFF000000)],
+    stops: [0.0, 0.75, 1.0],
+  );
   static const Color secondary = Color(0xFFFBFBF2);
   static const Color accent = Color(0xFF33658A); // light blue
   static const Color activeTab = Color(0xFF89BBFE); // active toggle blue

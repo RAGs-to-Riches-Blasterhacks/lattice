@@ -3,19 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lattice/navigation/app_navigation.dart';
+import 'package:lattice/themes/app_colors.dart';
 
-/// Deep blue (bottom) → black (top), matching Figma.
+/// CTA button gradient, matching Figma.
 class _LandingGradients {
-  static const Color blueDeep = Color(0xFF0B1F3A);
-  static const Color blackTop = Color(0xFF000000);
-
-  static const LinearGradient background = LinearGradient(
-    begin: Alignment.bottomCenter,
-    end: Alignment.topCenter,
-    colors: [blueDeep, Color(0xFF050A14), blackTop],
-    stops: [0.0, 0.45, 1.0],
-  );
-
   static const LinearGradient cta = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
@@ -298,7 +289,7 @@ class _LandingScreenState extends State<LandingScreen>
         children: [
           const DecoratedBox(
               decoration:
-                  BoxDecoration(gradient: _LandingGradients.background)),
+                  BoxDecoration(gradient: AppColors.gradientBackground)),
           AnimatedBuilder(
             animation: _twinkleController,
             builder: (context, _) {

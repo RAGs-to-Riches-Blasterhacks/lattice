@@ -199,104 +199,111 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => AppNavigation.goToLanding(context),
         ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/LOGO.png', width: 140),
-              const SizedBox(height: 32),
-              Text(
-                'Create Your Account',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Start building your personalized learning plans',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-              const SizedBox(height: 24),
-              _buildField(_displayNameController, 'Display Name'),
-              const SizedBox(height: 12),
-              _buildField(_emailController, 'Email',
-                  keyboardType: TextInputType.emailAddress),
-              const SizedBox(height: 12),
-              _buildField(_passwordController, 'Password', obscure: true),
-              const SizedBox(height: 12),
-              _buildField(_confirmPasswordController, 'Confirm Password',
-                  obscure: true),
-              const SizedBox(height: 12),
-              _buildTimezoneDropdown(),
-              const SizedBox(height: 12),
-              _locationSuggestions.isEmpty
-                  ? _buildField(_locationController, 'Location (Optional)',
-                      isOptional: true)
-                  : _buildLocationDropdown(),
-              const SizedBox(height: 8),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _error!,
-                    style:
-                        const TextStyle(color: Colors.redAccent, fontSize: 14),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.secondary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.secondary,
-                          ),
-                        )
-                      : const Text(
-                          'Create Account',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => AppNavigation.goToLogin(context),
-                child: const Text(
-                  'Already have an account? Log in',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
-            ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
           ),
-        ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/LOGO.png', width: 140),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Create Your Account',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start building your personalized learning plans',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildField(_displayNameController, 'Display Name'),
+                  const SizedBox(height: 12),
+                  _buildField(_emailController, 'Email',
+                      keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _buildField(_passwordController, 'Password', obscure: true),
+                  const SizedBox(height: 12),
+                  _buildField(_confirmPasswordController, 'Confirm Password',
+                      obscure: true),
+                  const SizedBox(height: 12),
+                  _buildTimezoneDropdown(),
+                  const SizedBox(height: 12),
+                  _locationSuggestions.isEmpty
+                      ? _buildField(_locationController, 'Location (Optional)',
+                          isOptional: true)
+                      : _buildLocationDropdown(),
+                  const SizedBox(height: 8),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 14),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.secondary,
+                              ),
+                            )
+                          : const Text(
+                              'Create Account',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => AppNavigation.goToLogin(context),
+                    child: const Text(
+                      'Already have an account? Log in',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

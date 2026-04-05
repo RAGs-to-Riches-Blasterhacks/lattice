@@ -12,11 +12,14 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const TopNav(),
       drawer: const AppDrawer(),
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
+          ),
           // Scrollable settings content
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
@@ -40,7 +43,8 @@ class SettingsScreen extends StatelessWidget {
                 _buildSettingsGroup(const [
                   _SettingsItem(Icons.person_outline, 'Account Management'),
                   _SettingsItem(Icons.notifications_outlined, 'Notifications'),
-                  _SettingsItem(Icons.accessibility_new_outlined, 'Accessibility Features'),
+                  _SettingsItem(Icons.accessibility_new_outlined,
+                      'Accessibility Features'),
                   _SettingsItem(Icons.translate, 'Language'),
                 ]),
                 const SizedBox(height: 24),
