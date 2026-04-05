@@ -360,6 +360,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
             // ChatOverlay — always present when a node is selected
             if (widget.planId != null)
               Positioned.fill(
+                key: const ValueKey('roadmap_chat_overlay'),
                 child: ChatOverlay(
                   planTitle: _selectedNode!.title,
                   planId: widget.planId,
