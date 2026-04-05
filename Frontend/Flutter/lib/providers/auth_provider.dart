@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lattice/models/user.dart';
 import 'package:lattice/services/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _api;
@@ -9,6 +9,9 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   String? _token;
   bool _loading = true;
+
+  static const _storage = FlutterSecureStorage();
+  static const _tokenKey = 'auth_token';
 
   AuthProvider(this._api) {
     _tryRestoreSession();
@@ -19,15 +22,14 @@ class AuthProvider extends ChangeNotifier {
   bool get loading => _loading;
 
   Future<void> _tryRestoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await _storage.read(key: _tokenKey);
     if (token != null) {
       _api.setAuthToken(token);
       try {
         _user = await _api.getMe();
         _token = token;
       } catch (_) {
-        await prefs.remove('auth_token');
+        await _storage.delete(key: _tokenKey);
         _api.setAuthToken(null);
       }
     }
@@ -60,8 +62,7 @@ class AuthProvider extends ChangeNotifier {
     _token = auth.idToken;
     _user = auth.user;
     _api.setAuthToken(auth.idToken);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', auth.idToken);
+    await _storage.write(key: _tokenKey, value: auth.idToken);
     notifyListeners();
   }
 
@@ -69,8 +70,7 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     _api.setAuthToken(null);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await _storage.delete(key: _tokenKey);
     notifyListeners();
   }
 

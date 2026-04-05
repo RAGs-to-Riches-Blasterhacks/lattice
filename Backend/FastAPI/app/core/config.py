@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     MONGO_DB_NAME: str = "lattice-test"
 
     FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
+    FIREBASE_CREDENTIALS_JSON: str = ""  # Full JSON string (for cloud deploys without a file)
     FIREBASE_API_KEY: str = ""  # Firebase Web API key (for email/password sign-in)
 
     OPENAI_API_KEY: str = ""  # OpenAI API key (used by litellm for the ADK agent)

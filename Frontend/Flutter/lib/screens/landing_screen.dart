@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lattice/screens/home_screen.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 
 /// Deep blue (bottom) → black (top), matching Figma.
 class _LandingGradients {
@@ -275,10 +275,13 @@ class _LandingScreenState extends State<LandingScreen>
     super.dispose();
   }
 
-  void _goToApp() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
-    );
+  void _goToLogin() {
+    AppNavigation.goToLogin(context);
+  }
+
+  void _goToSignUp() {
+    // TODO: Implement sign up flow or navigate to sign up screen
+    AppNavigation.goToLogin(context);
   }
 
   @override
@@ -413,12 +416,12 @@ class _LandingScreenState extends State<LandingScreen>
                     children: [
                       _GradientPillButton(
                         label: 'Log In',
-                        onPressed: _goToApp,
+                        onPressed: _goToLogin,
                       ),
                       const SizedBox(height: 14),
                       _GradientPillButton(
                         label: 'Sign Up',
-                        onPressed: _goToApp,
+                        onPressed: _goToSignUp,
                       ),
                     ],
                   ),

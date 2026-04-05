@@ -253,7 +253,7 @@ class _PlanCardState extends State<PlanCard>
                         color: AppColors.secondary,
                         fontWeight: FontWeight.bold,
                         fontSize: 12)),
-                Text('${widget.currentStep + 1}/${widget.totalSteps}',
+                Text('${widget.currentStep < widget.totalSteps ? widget.currentStep + 1 : widget.totalSteps}/${widget.totalSteps}',
                     style: const TextStyle(
                         color: AppColors.secondary, fontSize: 12)),
               ],

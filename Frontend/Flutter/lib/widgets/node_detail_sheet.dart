@@ -265,10 +265,12 @@ class _ResourcesSection extends StatelessWidget {
           (r) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: GestureDetector(
-              onTap: () => launchUrl(
-                Uri.parse(r.url),
-                mode: LaunchMode.externalApplication,
-              ),
+              onTap: () {
+                final uri = Uri.tryParse(r.url);
+                if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(

@@ -49,11 +49,15 @@ _AUTH_PREFIXES = ("/api/auth/login", "/api/auth/register", "/api/auth/oauth")
 
 
 def _get_client_ip(request: Request) -> str:
-    # Railway (and most proxies) set X-Forwarded-For
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # Only trust X-Forwarded-For when behind a known proxy (e.g. Railway).
+    # Railway connects via 127.0.0.1 or an internal IP; when running behind
+    # a reverse proxy the direct client.host is the proxy, not the user.
+    client_host = request.client.host if request.client else "unknown"
+    if client_host in ("127.0.0.1", "::1"):
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return client_host
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
