@@ -104,6 +104,62 @@ class ResearcherOutput(BaseModel):
     resources: list[ResourceOutput] = Field(default_factory=list)
     guide: str = ""
 
+# ---------------------------------------------------------------------------
+# Color contrast utilities (WCAG 2.1)
+# ---------------------------------------------------------------------------
+
+
+def _relative_luminance(hex_color: str) -> float:
+    """Return the WCAG relative luminance of a hex color string."""
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) == 3:
+        hex_color = "".join(c * 2 for c in hex_color)
+    r, g, b = (int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+
+    def linearize(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+
+
+def _contrast_ratio(hex1: str, hex2: str) -> float:
+    """Return the WCAG contrast ratio between two hex colors."""
+    l1 = _relative_luminance(hex1)
+    l2 = _relative_luminance(hex2)
+    lighter, darker = (l1, l2) if l1 >= l2 else (l2, l1)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _lighten_to_contrast(hex_color: str, against: str = "#000000", min_ratio: float = 4.5) -> str:
+    """Increase a color's lightness in HSL space until it meets min_ratio against `against`.
+
+    Returns the adjusted hex string. If the color already meets the threshold it is
+    returned unchanged. If it cannot be fixed (e.g. pure black), returns white (#FFFFFF).
+    """
+    import colorsys
+
+    if _contrast_ratio(hex_color, against) >= min_ratio:
+        return hex_color
+
+    hex_str = hex_color.lstrip("#")
+    if len(hex_str) == 3:
+        hex_str = "".join(c * 2 for c in hex_str)
+    r, g, b = (int(hex_str[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+
+    h, l, s = colorsys.rgb_to_hls(r, g, b)  # noqa: E741 (l is luminance not lambda)
+
+    for _ in range(200):
+        l = min(1.0, l + 0.005)  # nudge lightness up by 0.5 % each iteration
+        r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+        candidate = "#{:02X}{:02X}{:02X}".format(
+            round(r2 * 255), round(g2 * 255), round(b2 * 255)
+        )
+        if _contrast_ratio(candidate, against) >= min_ratio:
+            return candidate
+
+    return "#FFFFFF"
+
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "")
 EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "")
@@ -628,20 +684,31 @@ async def persist_plan(state: dict) -> dict:
                 break
 
     # --- Palette -------------------------------------------------------
+    # Roles that act as surfaces with black text on top must meet WCAG AA (4.5:1).
+    # The "text" role is the text color itself — skip it.
+    _SURFACE_ROLES = {"primary", "secondary", "accent", "background"}
+
     if palette_data and isinstance(palette_data, dict):
         colors_list = palette_data.get("colors", palette_data.get("palette", []))
-        plan.palette = Palette(
-            theme=palette_data.get("theme", ""),
-            colors=[
+        palette_colors = []
+        for c in colors_list:
+            if not isinstance(c, dict):
+                continue
+            role = c.get("role", "")
+            hex_val = c.get("hex", "#FFFFFF")
+            if role in _SURFACE_ROLES:
+                hex_val = _lighten_to_contrast(hex_val, against="#000000", min_ratio=4.5)
+            palette_colors.append(
                 PaletteColor(
-                    role=c["role"],
-                    hex=c["hex"],
+                    role=role,
+                    hex=hex_val,
                     name=c.get("name", ""),
                     rationale=c.get("rationale", ""),
                 )
-                for c in colors_list
-                if isinstance(c, dict)
-            ],
+            )
+        plan.palette = Palette(
+            theme=palette_data.get("theme", ""),
+            colors=palette_colors,
             accessibility=palette_data.get("accessibility"),
         )
     elif plan.palette is None:

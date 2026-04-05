@@ -305,7 +305,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                   child: PlanCard(
                     planId: widget.planId,
                     title: _selectedNode!.title,
-                    description: '',
+                    description: _selectedNode!.description,
                     cardColor: Color(_plan!.primaryColorValue),
                     currentTask: _selectedNode!.title,
                     currentStep: _selectedNode!.nodeNumber - 1,

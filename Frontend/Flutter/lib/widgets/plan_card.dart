@@ -211,6 +211,7 @@ class _PlanCardState extends State<PlanCard>
                             style: const TextStyle(
                               color: Colors.black87,
                               fontSize: 18,
+                              fontWeight: FontWeight.w600,
                               height: 1.3,
                             ),
                           ),
@@ -334,7 +335,7 @@ class _PlanCardState extends State<PlanCard>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 4),
                 ],
                 if (widget.resources.isNotEmpty) ...[
                   _CollapsibleSection(
@@ -370,7 +371,7 @@ class _PlanCardState extends State<PlanCard>
                           .toList(),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                 ],
                 _CollapsibleSection(
                   title: 'Notes',
