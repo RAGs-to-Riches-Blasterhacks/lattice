@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:lattice/models/user_stats.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
@@ -43,163 +44,312 @@ class _ProfileStatsScreenState extends State<ProfileStatsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _StatTile(
-                label: 'Current Streak',
-                value: '${_stats?.currentStreak ?? 0}',
-                icon: Icons.local_fire_department,
-              ),
-              const SizedBox(width: 12),
-              _StatTile(
-                label: 'Longest Streak',
-                value: '${_stats?.longestStreak ?? 0}',
-                icon: Icons.emoji_events,
-              ),
-            ],
+          // Profile Engagement Header
+          _ProfileEngagementCard(
+            currentStreak: _stats?.currentStreak ?? 0,
+            longestStreak: _stats?.longestStreak ?? 0,
+            tasksCompleted: _stats?.totalTasksCompleted ?? 0,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _StatTile(
-                label: 'Days Active',
-                value: '${_stats?.totalDaysActive ?? 0}',
-                icon: Icons.calendar_today,
-              ),
-              const SizedBox(width: 12),
-              _StatTile(
-                label: 'Tasks Done',
-                value: '${_stats?.totalTasksCompleted ?? 0}',
-                icon: Icons.check_circle_outline,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _StatTile(
-                label: 'Plans Completed',
-                value: '${_stats?.totalPlansCompleted ?? 0}',
-                icon: Icons.map_outlined,
-              ),
-              const SizedBox(width: 12),
-              const Expanded(child: SizedBox()),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _ActivityChart(days: _stats?.tasksCompletedByDay ?? []),
+          const SizedBox(height: 24),
+
+          // Activity Feed
+          _ActivityFeed(days: _stats?.tasksCompletedByDay ?? []),
         ],
       ),
     );
   }
 }
 
-class _ActivityChart extends StatelessWidget {
+// Profile Engagement Header (like Instagram bio)
+class _ProfileEngagementCard extends StatelessWidget {
+  final int currentStreak;
+  final int longestStreak;
+  final int tasksCompleted;
+
+  const _ProfileEngagementCard({
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.tasksCompleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        border: Border.all(
+          color: const Color(0xFF00C9C8).withValues(alpha: 0.4),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00C9C8).withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Column(
+                children: [
+                  Text(
+                    '$currentStreak',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF28B95),
+                    ),
+                  ),
+                  const Text(
+                    'Streak',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFF28B95),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                height: 40,
+                width: 1,
+                color: AppColors.cardBorder,
+              ),
+              Column(
+                children: [
+                  Text(
+                    '$tasksCompleted',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFC3A6D4),
+                    ),
+                  ),
+                  const Text(
+                    'Completed',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFC3A6D4),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                height: 40,
+                width: 1,
+                color: AppColors.cardBorder,
+              ),
+              Column(
+                children: [
+                  Text(
+                    '$longestStreak',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF8FAFD4),
+                    ),
+                  ),
+                  const Text(
+                    'Best',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8FAFD4),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Activity Feed (line chart)
+class _ActivityFeed extends StatelessWidget {
   final List<DailyTaskCount> days;
 
-  const _ActivityChart({required this.days});
+  const _ActivityFeed({required this.days});
 
   @override
   Widget build(BuildContext context) {
     if (days.isEmpty) return const SizedBox.shrink();
 
     final maxCount = days.fold<int>(0, (m, d) => d.count > m ? d.count : m);
-    final barMax = maxCount > 0 ? maxCount : 1;
+    final yMax = maxCount > 0 ? (maxCount * 1.2).toDouble() : 10.0;
+
+    // Create line chart spots
+    final spots = List<FlSpot>.generate(
+      days.length,
+      (i) => FlSpot(i.toDouble(), days[i].count.toDouble()),
+    );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF00C9C8).withValues(alpha: 0.3),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Tasks Completed (30 days)',
+            'Activity Feed',
             style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 80,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: days.map((day) {
-                final fraction = day.count / barMax;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 0.5),
-                    child: FractionallySizedBox(
-                      heightFactor: day.count > 0 ? 0.1 + (0.9 * fraction) : 0.05,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: day.count > 0
-                              ? AppColors.accent.withValues(alpha: 0.4 + 0.6 * fraction)
-                              : AppColors.cardBorder,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: (yMax / 5).ceil().toDouble(),
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: const Color(0xFF00C9C8).withValues(alpha: 0.1),
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: (days.length / 6).ceilToDouble(),
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index >= 0 && index < days.length) {
+                          return Text(
+                            'D${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ),
-                );
-              }).toList(),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      interval: (yMax / 5).ceil().toDouble(),
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: const Color(0xFF00C9C8).withValues(alpha: 0.2),
+                      width: 1,
+                    ),
+                    left: BorderSide(
+                      color: const Color(0xFF00C9C8).withValues(alpha: 0.2),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                minX: 0,
+                maxX: (days.length - 1).toDouble(),
+                minY: 0,
+                maxY: yMax,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    curveSmoothness: 0.2,
+                    color: const Color(0xFF00C9C8),
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: false,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: const Color(0xFFF28B95),
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF00C9C8).withValues(alpha: 0.1),
+                    ),
+                  ),
+                ],
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    tooltipBgColor: const Color(0xFF1a1a1a).withValues(
+                      alpha: 0.9,
+                    ),
+                    tooltipRoundedRadius: 8,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedBarSpot) {
+                        final dayIndex = touchedBarSpot.x.toInt();
+                        if (dayIndex >= 0 && dayIndex < days.length) {
+                          final count = touchedBarSpot.y.toInt();
+                          return LineTooltipItem(
+                            '$count tasks',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          );
+                        }
+                        return LineTooltipItem(
+                          '',
+                          const TextStyle(),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: AppColors.accent, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

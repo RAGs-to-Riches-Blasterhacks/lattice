@@ -39,4 +39,11 @@ class AppColors {
   static const Color iconArticle = Color(0xFF64B5F6);
   static const Color iconExercise = Color(0xFF81C784);
   static const Color iconEvent = Color(0xFFBA68C8);
+
+  // Landing screen card colors (vibrant palette)
+  static const Color cardColorPink = Color(0xFFF28B95);
+  static const Color cardColorPurple = Color(0xFFC3A6D4);
+  static const Color cardColorBlue = Color(0xFF8FAFD4);
+  static const Color cardColorBeige = Color(0xFFF5F0E1);
+  static const Color cardColorGreen = Color(0xFF6A9F6B);
 }
