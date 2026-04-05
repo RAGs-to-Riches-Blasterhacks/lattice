@@ -202,7 +202,7 @@ function App() {
             </div>
 
             <div className="download-column">
-              <img className="download-qr" src={assetPath('qr-apple.svg')} alt="Scan to download Lattice on iOS" />
+              <p className="coming-soon">iOS coming soon</p>
               <StoreBadge badge={storeBadges.appStore} />
             </div>
           </div>
