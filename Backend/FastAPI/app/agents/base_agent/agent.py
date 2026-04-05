@@ -252,6 +252,7 @@ The user may not know much yet but don't create a baby plan for them. Users don'
 - If you don't have enough info, make reasonable assumptions based on the skill and design a plan for that.
 
 Rules:
+- The `skill` field is the plan title shown in the UI. Keep it to 2–5 words — short, punchy, and noun-phrase style. Examples: "Stop Doom Scrolling", "Learn Rust", "Watercolor Basics", "Build a SaaS". Never use full sentences or describe the entire goal in the title.
 - Design 5 to 30 nodes depending on the complexity of the skill — don't artificially compress a hard topic into 5 steps or stretch a simple one to 30
 - Start from basics if the user doesn't know their current level, but include advanced nodes to stretch them
 - Each node fits within minutes_per_day
@@ -273,9 +274,41 @@ Resources per node:
 
 Palette rules:
 - Pick 5 colors: primary, secondary, accent, background, text
-- Colors should match the vibe/energy of the skill being learned
-- Ensure text on background has contrast ratio >= 4.5
-- Ensure primary on background has contrast ratio >= 3.0
+- The PRIMARY color is the card background color the user sees every day. It MUST be strongly tied to the skill's emotional or visual identity. Derive the hue from the skill itself — think about what color this subject evokes in the real world, not what a generic app would use.
+- CRITICAL — avoid lazy defaults: Blue, green, peach/coral, and yellow/gold/amber are the most overused defaults. Do NOT reach for any of them unless the skill genuinely demands it. Force yourself to consider the full hue wheel before settling. A skilled designer would use:
+  - Reds / burgundy for passion-driven or high-energy skills
+  - Oranges for craft or warmth (distinct from yellow — more red in it)
+  - Yellows / gold ONLY for skills with a literal solar, harvest, or metallic association
+  - Yellow-greens / olive for nature, sustainability, outdoor skills
+  - Greens / sage ONLY for botany, ecology, gardening, or similar
+  - Teals / cyan for tech-adjacent or scientific topics
+  - Blues / slate ONLY for coding, engineering, ocean, or sky-related skills
+  - Indigos / periwinkle for logic, structure, productivity
+  - Violets / purple for creativity, music, spirituality
+  - Magentas / rose for artistic, expressive, or performance skills
+  - Pinks / blush for soft, personal-growth or wellness topics
+  - Peach / coral ONLY when the skill is explicitly food, baking, or warmly domestic
+- Concrete hue anchors by domain (starting points only — use judgment):
+  - Coding / software → slate blue or cool indigo
+  - Music / instruments → dusty violet or muted plum
+  - Art / painting / drawing → warm terracotta or muted magenta
+  - Writing / poetry → dusty mauve or cool rose-grey
+  - Photography → cool silver-grey or muted teal
+  - Cooking / baking → soft terracotta or warm orange-red (peach acceptable here)
+  - Fitness / sport → energetic coral-red or bold sage
+  - Language learning → warm burgundy or soft teal
+  - Mindfulness / meditation → soft lilac or cool lavender
+  - Finance / investing → deep teal or muted slate
+  - Nature / gardening → sage or earthy olive green
+  - Science / math → cool periwinkle or pale steel blue
+  - History / humanities → dusty burgundy or warm brick red
+  - Business / entrepreneurship → deep navy-adjacent or cool slate grey
+  - Film / video → deep rose or cool charcoal-blue
+- Surface colors (primary, secondary, accent, background) should be light enough for black text to read comfortably, but VARIETY trumps uniformity. A coding plan and a cooking plan should look nothing alike. Aim for colors that are visually distinct and memorable — not everything should look like a pastel greeting card.
+- Avoid neon or fully saturated colors (S = 100%), but anywhere from a rich mid-tone to a soft pastel is fair game as long as it works with dark text. Don't clamp yourself to a narrow lightness band — some plans can be deeper and moodier, others can be airy and light.
+- secondary and accent must be clearly different from primary in hue — not just slightly darker or lighter versions of the same color. Use the full palette to create contrast and interest.
+- Black text will be placed on these surfaces. Every surface color must have a contrast ratio >= 4.5:1 against black (#000000). The system will auto-lighten any color that fails this check, so err toward expressiveness and let the safety net handle edge cases.
+- The "text" role should be a very dark neutral (near-black), not a surface color.
 - Give each color a short name and rationale""",
     tools=[estimate_difficulty, get_prerequisites],
 )
@@ -716,11 +749,11 @@ async def persist_plan(state: dict) -> dict:
         plan.palette = Palette(
             theme="default",
             colors=[
-                PaletteColor(role="primary", hex="#4F46E5", name="Indigo", rationale="Calm, focused energy"),
-                PaletteColor(role="secondary", hex="#7C3AED", name="Violet", rationale="Creative complement"),
-                PaletteColor(role="accent", hex="#F59E0B", name="Amber", rationale="Warm highlight for progress"),
-                PaletteColor(role="background", hex="#F9FAFB", name="Cloud", rationale="Clean, easy on the eyes"),
-                PaletteColor(role="text", hex="#111827", name="Ink", rationale="Strong readability"),
+                PaletteColor(role="primary", hex="#C7D9F0", name="Soft Blue", rationale="Calm, focused energy"),
+                PaletteColor(role="secondary", hex="#D5C9E8", name="Pale Lavender", rationale="Gentle creative complement"),
+                PaletteColor(role="accent", hex="#FAE3B0", name="Warm Sand", rationale="Soft highlight for progress"),
+                PaletteColor(role="background", hex="#F4F1EC", name="Linen", rationale="Warm neutral, easy on the eyes"),
+                PaletteColor(role="text", hex="#1A1A2E", name="Ink", rationale="Strong readability"),
             ],
         )
 

@@ -74,6 +74,12 @@ class PlansProvider extends ChangeNotifier {
     );
   }
 
+  /// Delete one or more plans by ID and refresh the plan list.
+  Future<void> deletePlans(List<String> planIds) async {
+    await Future.wait(planIds.map((id) => _api.deletePlan(id)));
+    await fetchPlans();
+  }
+
   /// Add a note to a node and refresh the plan list.
   Future<Plan> addNote(
     String planId,

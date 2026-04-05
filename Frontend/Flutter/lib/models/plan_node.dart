@@ -290,6 +290,7 @@ class PlanSummary {
   final String? currentNodeDescription;
   final List<Resource> currentNodeResources;
   final List<NodeNote> currentNodeNotes;
+  final Palette? palette;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -307,9 +308,20 @@ class PlanSummary {
     this.currentNodeDescription,
     this.currentNodeResources = const [],
     this.currentNodeNotes = const [],
+    this.palette,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  int get primaryColorValue {
+    if (palette != null && palette!.colors.isNotEmpty) {
+      final primary = palette!.colors.where((c) => c.role == 'primary');
+      final hex =
+          primary.isNotEmpty ? primary.first.hex : palette!.colors.first.hex;
+      return int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16) ?? 0xFF33658A;
+    }
+    return 0xFF33658A;
+  }
 
   factory PlanSummary.fromJson(Map<String, dynamic> json) {
     return PlanSummary(
@@ -335,6 +347,9 @@ class PlanSummary {
           (json['current_node_notes'] as List<dynamic>? ?? [])
               .map((n) => NodeNote.fromJson(n as Map<String, dynamic>))
               .toList(),
+      palette: json['palette'] != null
+          ? Palette.fromJson(json['palette'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

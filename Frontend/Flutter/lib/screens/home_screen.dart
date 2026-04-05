@@ -12,14 +12,6 @@ import '../main.dart' show routeObserver;
 import '../widgets/plan_card.dart';
 import '../widgets/quick_note_dialog.dart';
 
-// Default card colors when plans don't have a palette
-const _defaultColors = [
-  Color(0xFF6A9F6B),
-  Color(0xFF8FAFD4),
-  Color(0xFFE8A0B4),
-  Color(0xFFF5F0E1),
-  Color(0xFFBFA2DB),
-];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -274,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     Widget buildCard(int pIndex, {Key? key, VoidCallback? onTap}) {
       final plan = plans[pIndex];
-      final color = _defaultColors[pIndex % _defaultColors.length];
+      final color = Color(plan.primaryColorValue);
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: PlanCard(
@@ -540,8 +532,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (_isFrontCardExpanded && plans.isNotEmpty) ...[
             () {
               final frontPlan = plans[_cardOrder[0]];
-              final color =
-                  _defaultColors[_cardOrder[0] % _defaultColors.length];
+              final color = Color(frontPlan.primaryColorValue);
               return AnimatedPositioned(
                 duration: const Duration(milliseconds: 350),
                 curve: Curves.easeInOut,
@@ -615,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ? plans[_cardOrder[0]].id
                 : null,
             planCardColor: (_isFrontCardExpanded && plans.isNotEmpty)
-                ? _defaultColors[_cardOrder[0] % _defaultColors.length]
+                ? Color(plans[_cardOrder[0]].primaryColorValue)
                 : null,
             onPlanChatStarted: () {
               setState(() => _planChatActive = true);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lattice/models/chat_message.dart';
+import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:provider/provider.dart';
@@ -80,6 +81,10 @@ class ChatOverlayState extends State<ChatOverlay>
 
   String? _conversationId;
   bool _awaitingResponse = false;
+
+  // Set when the agent creates a plan — tracks which message index and the plan id.
+  String? _createdPlanId;
+  int? _planCreatedAtMessageIndex;
 
   bool get _chatActive => _messages.isNotEmpty;
   bool get _inPlanContext =>
@@ -194,6 +199,8 @@ class ChatOverlayState extends State<ChatOverlay>
           final newPlanId = lastMsg.metadata!['plan_id'] as String;
           final planConv = await api.createConversation(planId: newPlanId);
           _conversationId = planConv.id;
+          _createdPlanId = newPlanId;
+          _planCreatedAtMessageIndex = _messages.length - 1;
           widget.onPlanCreated?.call();
         }
 
@@ -373,6 +380,40 @@ class ChatOverlayState extends State<ChatOverlay>
     );
   }
 
+  Widget _buildViewRoadmapButton(String planId) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 60, right: 16, bottom: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: GestureDetector(
+          onTap: () => AppNavigation.goToRoadmap(context, planId: planId),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.map_outlined, color: AppColors.textPrimary, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'View Roadmap',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTypingIndicator() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -495,8 +536,13 @@ class ChatOverlayState extends State<ChatOverlay>
                           controller: _scrollController,
                           padding:
                               const EdgeInsets.only(top: 8, bottom: 12),
-                          itemCount: _messages.length + (_awaitingResponse ? 1 : 0),
+                          itemCount: _messages.length + (_awaitingResponse ? 1 : 0) + (_createdPlanId != null ? 1 : 0),
                           itemBuilder: (_, i) {
+                            if (_createdPlanId != null && _planCreatedAtMessageIndex != null) {
+                              final buttonIndex = _planCreatedAtMessageIndex! + 1;
+                              if (i == buttonIndex) return _buildViewRoadmapButton(_createdPlanId!);
+                              if (i > buttonIndex) i -= 1;
+                            }
                             if (i == _messages.length) return _buildTypingIndicator();
                             return _buildBubble(_messages[i]);
                           },
@@ -523,8 +569,13 @@ class ChatOverlayState extends State<ChatOverlay>
                   ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(top: 60, bottom: 12),
-                    itemCount: _messages.length + (_awaitingResponse ? 1 : 0),
+                    itemCount: _messages.length + (_awaitingResponse ? 1 : 0) + (_createdPlanId != null ? 1 : 0),
                     itemBuilder: (_, i) {
+                      if (_createdPlanId != null && _planCreatedAtMessageIndex != null) {
+                        final buttonIndex = _planCreatedAtMessageIndex! + 1;
+                        if (i == buttonIndex) return _buildViewRoadmapButton(_createdPlanId!);
+                        if (i > buttonIndex) i -= 1;
+                      }
                       if (i == _messages.length) return _buildTypingIndicator();
                       return _buildBubble(_messages[i]);
                     },

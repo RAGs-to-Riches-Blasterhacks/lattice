@@ -315,28 +315,8 @@ class _PlanCardState extends State<PlanCard>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (widget.nodeDescription != null &&
-                    widget.nodeDescription!.isNotEmpty) ...[
-                  _CollapsibleSection(
-                    title: 'What To Do',
-                    expandedContent: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('• ',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Expanded(
-                          child: Text(
-                            widget.nodeDescription!,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                ],
+                
+                
                 if (widget.resources.isNotEmpty) ...[
                   _CollapsibleSection(
                     title: 'Resources',

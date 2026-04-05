@@ -87,6 +87,7 @@ def _plan_summary(plan: Plan) -> PlanSummaryResponse:
         current_node_description=current_node.description if current_node else None,
         current_node_resources=current_node.resources if current_node else [],
         current_node_notes=current_node.notes if current_node else [],
+        palette=plan.palette,
         created_at=plan.created_at,
         updated_at=plan.updated_at,
     )

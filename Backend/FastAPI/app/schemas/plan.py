@@ -119,5 +119,6 @@ class PlanSummaryResponse(BaseModel):
     current_node_description: Optional[str] = None
     current_node_resources: list[Resource] = []
     current_node_notes: list[NodeNote] = []
+    palette: Optional[Palette] = None
     created_at: datetime
     updated_at: datetime
