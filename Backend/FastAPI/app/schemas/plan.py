@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.models.plan import (
     Branch,
+    NodeNote,
     NodeOption,
     NodeStatus,
     Palette,
@@ -117,5 +118,6 @@ class PlanSummaryResponse(BaseModel):
     current_node_title: Optional[str] = None
     current_node_description: Optional[str] = None
     current_node_resources: list[Resource] = []
+    current_node_notes: list[NodeNote] = []
     created_at: datetime
     updated_at: datetime

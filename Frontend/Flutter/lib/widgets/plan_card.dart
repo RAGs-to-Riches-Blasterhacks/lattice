@@ -113,12 +113,16 @@ class _PlanCardState extends State<PlanCard>
   Widget build(BuildContext context) {
     final VoidCallback? tapHandler =
         widget.onClose != null ? null : (widget.onTap ?? _toggleExpand);
+    final double screenHeight = MediaQuery.of(context).size.height;
 
     return GestureDetector(
       onTap: tapHandler,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20.0),
+        constraints: _isExpanded
+            ? BoxConstraints(maxHeight: screenHeight * 0.9)
+            : const BoxConstraints(),
         decoration: BoxDecoration(
           color: widget.cardColor,
           borderRadius: BorderRadius.circular(20.0),
@@ -214,7 +218,7 @@ class _PlanCardState extends State<PlanCard>
                             heightFactor: _anim.value,
                             child: FadeTransition(
                               opacity: _anim,
-                              child: _buildExtraContent(),
+                              child: _buildExtraContent(screenHeight),
                             ),
                           ),
                         ),
@@ -283,160 +287,182 @@ class _PlanCardState extends State<PlanCard>
   // ─── EXTRA EXPANDED CONTENT ───────────────────────────────────────────────
   // Everything below the persistent header (title, description, pill).
 
-  Widget _buildExtraContent() {
+  Widget _buildExtraContent(double screenHeight) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Quick actions (static, not scrolled) ────────────────────────────
         if (widget.currentNodeId != null &&
             (widget.onMarkComplete != null || widget.onAddNote != null)) ...[
           const SizedBox(height: 12),
           _buildQuickActions(),
         ],
         const SizedBox(height: 16),
-        if (widget.nodeDescription != null &&
-            widget.nodeDescription!.isNotEmpty)
-          _CollapsibleSection(
-            title: 'What To Do',
-            expandedContent: Row(
+        // ── Scrollable sections (What To Do / Resources / Notes) ────────────
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: screenHeight * 0.4),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('• ',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-                Expanded(
-                  child: Text(
-                    widget.nodeDescription!,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14),
+                if (widget.nodeDescription != null &&
+                    widget.nodeDescription!.isNotEmpty) ...[
+                  _CollapsibleSection(
+                    title: 'What To Do',
+                    expandedContent: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        Expanded(
+                          child: Text(
+                            widget.nodeDescription!,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                ],
+                if (widget.resources.isNotEmpty) ...[
+                  _CollapsibleSection(
+                    title: 'Resources',
+                    expandedContent: Column(
+                      children: widget.resources
+                          .map((r) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6.0),
+                                child: GestureDetector(
+                                  onTap: () => launchUrl(Uri.parse(r.url),
+                                      mode: LaunchMode.externalApplication),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('${_resourceIcon(r.type)} ',
+                                          style: const TextStyle(fontSize: 16)),
+                                      Expanded(
+                                        child: Text(
+                                          r.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            decoration:
+                                                TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                _CollapsibleSection(
+                  title: 'Notes',
+                  expandedContent: widget.notes.isEmpty
+                      ? const Text(
+                          'No notes yet.',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Colors.black54),
+                        )
+                      : Column(
+                          children: widget.notes
+                              .map((n) => Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 8.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          n.content,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          DateFormat('MMM d, h:mm a')
+                                              .format(n.createdAt.toLocal()),
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.black54),
+                                        ),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
                 ),
               ],
             ),
           ),
-        if (widget.resources.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _CollapsibleSection(
-            title: 'Resources',
-            expandedContent: Column(
-              children: widget.resources
-                  .map((r) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6.0),
-                        child: GestureDetector(
-                          onTap: () => launchUrl(Uri.parse(r.url),
-                              mode: LaunchMode.externalApplication),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${_resourceIcon(r.type)} ',
-                                  style: const TextStyle(fontSize: 16)),
-                              Expanded(
-                                child: Text(
-                                  r.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ))
-                  .toList(),
+        ),
+        // ── View Roadmap button (static, not scrolled) ───────────────────────
+        if (widget.onClose == null) ...[
+          const SizedBox(height: 8),
+          Center(
+            child: Listener(
+              onPointerDown: (_) => setState(() => _isButtonPressed = true),
+              onPointerUp: (_) => setState(() => _isButtonPressed = false),
+              onPointerCancel: (_) => setState(() => _isButtonPressed = false),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: _isButtonPressed ? 6 : 0,
+                  bottom: _isButtonPressed ? 0 : 6,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: _isButtonPressed
+                        ? []
+                        : const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(0, 6),
+                              blurRadius: 0,
+                            ),
+                          ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      AppNavigation.goToRoadmap(context, planId: widget.planId);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2B5B73),
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: const BorderSide(color: Colors.black, width: 4),
+                      ),
+                    ),
+                    child: const Text(
+                      'View Roadmap',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
-        const SizedBox(height: 16),
-        _CollapsibleSection(
-          title: 'Notes',
-          expandedContent: widget.notes.isEmpty
-              ? const Text(
-                  'No notes yet.',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: Colors.black54),
-                )
-              : Column(
-                  children: widget.notes
-                      .map((n) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  n.content,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  DateFormat('MMM d, h:mm a')
-                                      .format(n.createdAt.toLocal()),
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Colors.black54),
-                                ),
-                              ],
-                            ),
-                          ))
-                      .toList(),
-                ),
-        ),
-        const SizedBox(height: 24),
-        Center(
-          child: Listener(
-            onPointerDown: (_) => setState(() => _isButtonPressed = true),
-            onPointerUp: (_) => setState(() => _isButtonPressed = false),
-            onPointerCancel: (_) => setState(() => _isButtonPressed = false),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: _isButtonPressed ? 6 : 0,
-                bottom: _isButtonPressed ? 0 : 6,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: _isButtonPressed
-                      ? []
-                      : const [
-                          BoxShadow(
-                            color: Colors.black,
-                            offset: Offset(0, 6),
-                            blurRadius: 0,
-                          ),
-                        ],
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    AppNavigation.goToRoadmap(context, planId: widget.planId);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2B5B73),
-                    foregroundColor: Colors.white,
-                    shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      side: const BorderSide(color: Colors.black, width: 4),
-                    ),
-                  ),
-                  child: const Text(
-                    'View Roadmap',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
