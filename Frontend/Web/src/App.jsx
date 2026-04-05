@@ -1,6 +1,10 @@
 import './App.css'
 import teamMembers from './data/team.json'
 
+const basePath = import.meta.env.BASE_URL
+const assetPath = (path) => `${basePath}${path}`
+const cssAssetUrl = (path) => `url("${encodeURI(assetPath(path))}")`
+
 const steps = [
   {
     id: '01',
@@ -27,19 +31,19 @@ const steps = [
 
 const storeBadges = {
   googlePlay: {
-    src: '/badges/google-download-white.svg',
+    src: assetPath('badges/google-download-white.svg'),
     fileName: 'google-download-white.svg',
     alt: 'Google Play download badge',
   },
   appStore: {
-    src: '/badges/apple-download-white.svg',
+    src: assetPath('badges/apple-download-white.svg'),
     fileName: 'apple-download-white.svg',
     alt: 'App Store download badge',
   },
 }
 
 const brandLogo = {
-  src: '/LOGO.png',
+  src: assetPath('LOGO.png'),
   fileName: 'LOGO.png',
   alt: 'Lattice logo',
 }
@@ -48,7 +52,7 @@ function StoreBadge({ badge }) {
   return (
     <a
       className="store-badge store-badge--image"
-      href="/"
+      href="#download-buttons"
       onClick={(event) => event.preventDefault()}
     >
       {badge.src ? (
@@ -76,7 +80,7 @@ function BrandLogo() {
 
 function SocialIcon({ type }) {
   if (type === 'gravatar') {
-    return <img src="/gravatar.png" alt="" />
+    return <img src={assetPath('gravatar.png')} alt="" />
   }
 
   if (type === 'linkedin') {
@@ -100,7 +104,7 @@ function SocialIcon({ type }) {
 function TeamAvatar({ member }) {
   const label = `${member.name} profile`
   const hasPhoto = Boolean(member.photo)
-  const photoSrc = hasPhoto ? `/team/${member.photo}` : null
+  const photoSrc = hasPhoto ? assetPath(`team/${member.photo}`) : null
   const socialLinks = [
     { type: 'gravatar', href: member.gravatar, label: `${member.name} on Gravatar` },
     { type: 'linkedin', href: member.linkedin, label: `${member.name} on LinkedIn` },
@@ -178,7 +182,10 @@ function App() {
       </header>
 
       <section className="hero-section" id="hero">
-      <div className="starfield" />
+      <div
+        className="starfield"
+        style={{ backgroundImage: cssAssetUrl('Frame 362.svg') }}
+      />
 
         <div className="hero-copy">
           <h1>
@@ -188,7 +195,7 @@ function App() {
             <span className="hero-copy__line">Download Lattice Today!</span>
           </h1>
 
-          <div className="store-buttons">
+          <div className="store-buttons" id="download-buttons">
             <StoreBadge badge={storeBadges.googlePlay} />
 
             <span className="store-divider">OR</span>
@@ -223,7 +230,7 @@ function App() {
             </div>
 
             <div className="feature-stack" aria-hidden="true">
-              <img src="/PlanCards.png?v=2" alt="" />
+              <img src={assetPath('PlanCards.png?v=2')} alt="" />
             </div>
           </div>
         </section>
