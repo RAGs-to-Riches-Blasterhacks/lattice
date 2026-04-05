@@ -4,6 +4,7 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'celebration.dart';
 
 class PlanCard extends StatefulWidget {
   final String? planId;
@@ -478,7 +479,14 @@ class _PlanCardState extends State<PlanCard>
               icon: Icons.check_circle_outline_rounded,
               label: 'Mark Done',
               color: const Color(0xFF4CAF50),
-              onTap: widget.onMarkComplete!,
+              onTap: () {
+                // 1. Execute your existing completion logic
+                widget.onMarkComplete!();
+                
+                // 2. Trigger the fireworks overlay
+                // (Make sure to import 'celebration.dart' at the top of this file)
+                CelebrationOverlay.show(context);
+              },
             ),
           ),
         if (widget.onMarkComplete != null && widget.onAddNote != null)
