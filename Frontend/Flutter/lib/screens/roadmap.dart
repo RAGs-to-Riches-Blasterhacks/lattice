@@ -3,6 +3,7 @@ import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/providers/plans_provider.dart';
 import 'package:lattice/themes/app_colors.dart';
 import 'package:lattice/widgets/branch_junction_widget.dart';
+import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/plan_card.dart';
 import 'package:lattice/widgets/quick_note_dialog.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
@@ -22,7 +23,8 @@ final class _NormalItem extends _RoadmapItem {
 final class _BranchJunctionItem extends _RoadmapItem {
   final Branch branch;
   final PlanNode firstNode;
-  _BranchJunctionItem(this.branch, this.firstNode);
+  final List<Branch> relatedBranches;
+  _BranchJunctionItem(this.branch, this.firstNode, this.relatedBranches);
 }
 
 // ── Screen ───────────────────────────────────────────────────────────────────
@@ -41,6 +43,10 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   late String _activeBranchId;
   final _inProgressKey = GlobalKey();
   String? _error;
+
+  // Node detail overlay state
+  PlanNode? _selectedNode;
+  bool _planCardCollapsed = false;
 
   @override
   void initState() {
@@ -82,124 +88,153 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   void _showNodeDetail(PlanNode node) {
-    final planId = widget.planId;
-    if (planId == null) return;
-    final provider = context.read<PlansProvider>();
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: SingleChildScrollView(
-          child: PlanCard(
-            planId: planId,
-            title: node.title,
-            description: '',
-            cardColor: Color(_plan!.primaryColorValue),
-            currentTask: node.title,
-            currentStep: node.nodeNumber - 1,
-            totalSteps: _plan!.nodes.length,
-            nodeDescription:
-                node.description.isNotEmpty ? node.description : null,
-            resources: node.resources,
-            notes: node.notes,
-            currentNodeId: node.nodeId,
-            startExpanded: true,
-            onClose: () => Navigator.of(dialogContext).pop(),
-            onMarkComplete: () {
-              Navigator.of(dialogContext).pop();
-              provider
-                  .logProgress(planId, node.nodeId, status: 'completed')
-                  .then((_) {
-                if (mounted) _loadPlan();
-              });
-            },
-            onAddNote: () {
-              QuickNoteDialog.show(context).then((content) {
-                if (content == null || content.isEmpty) return;
-                provider.addNote(planId, node.nodeId, content).then((_) {
-                  if (mounted) _loadPlan();
-                });
-              });
-            },
-          ),
-        ),
-      ),
-    );
+    setState(() {
+      _selectedNode = node;
+      _planCardCollapsed = false;
+    });
   }
 
-  List<_RoadmapItem> _buildItems(Plan plan) {
-    final activeBranch =
-        plan.branches.firstWhere((b) => b.branchId == _activeBranchId);
+  void _dismissNodeOverlay() {
+    setState(() {
+      _selectedNode = null;
+      _planCardCollapsed = false;
+    });
+  }
 
-    final List<PlanNode> activePath;
+  /// Recursively walks up the parent chain to build the full active path.
+  /// For Branch B → Branch A → Main, this returns:
+  ///   [Main nodes up to A's diverge] + [A nodes up to B's diverge] + [B nodes]
+  List<PlanNode> _resolveActivePath(Plan plan, String branchId) {
+    final branch = plan.branches.firstWhere((b) => b.branchId == branchId);
 
-    if (activeBranch.parentBranchId != null &&
-        activeBranch.divergedFromNodeId != null) {
-      final parentNodes = plan.nodes
-          .where((n) => n.branchId == activeBranch.parentBranchId)
-          .toList()
-        ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
+    final branchNodes = plan.nodes
+        .where((n) => n.branchId == branchId)
+        .toList()
+      ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
 
-      final divIdx = parentNodes
-          .indexWhere((n) => n.nodeId == activeBranch.divergedFromNodeId);
-
-      final branchNodes = plan.nodes
-          .where((n) => n.branchId == _activeBranchId)
-          .toList()
-        ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
-
-      activePath = [
-        ...parentNodes.sublist(0, divIdx + 1),
-        ...branchNodes,
-      ];
-    } else {
-      activePath = plan.nodes
-          .where((n) => n.branchId == _activeBranchId)
-          .toList()
-        ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
+    if (branch.parentBranchId == null || branch.divergedFromNodeId == null) {
+      return branchNodes;
     }
 
-    final items = <_RoadmapItem>[];
+    final ancestorPath = _resolveActivePath(plan, branch.parentBranchId!);
+    final divIdx =
+        ancestorPath.indexWhere((n) => n.nodeId == branch.divergedFromNodeId);
 
-    for (final node in activePath) {
+    if (divIdx == -1) return branchNodes; // data inconsistency fallback
+
+    return [
+      ...ancestorPath.sublist(0, divIdx + 1),
+      ...branchNodes,
+    ];
+  }
+
+  /// Returns the ancestry chain root-first, ending with the active branch.
+  /// e.g. [Main, BranchA, BranchB] when BranchB is active.
+  List<Branch> _getAncestryChain(Plan plan, String branchId) {
+    final chain = <Branch>[];
+    var current = plan.branches.firstWhere((b) => b.branchId == branchId);
+    chain.add(current);
+    while (current.parentBranchId != null) {
+      current =
+          plan.branches.firstWhere((b) => b.branchId == current.parentBranchId);
+      chain.add(current);
+    }
+    return chain.reversed.toList();
+  }
+
+  /// The dropdown options for a junction at [divergeNode].
+  /// Includes the branch that owns the node ("stay on this path") plus every
+  /// branch that forked from it ("take an alternative path").
+List<Branch> _branchOptionsAt(Plan plan, PlanNode divergeNode) {
+  // 1. Find the "Base" branch (the one the current node belongs to)
+  final baseBranch = plan.branches.firstWhere((b) => b.branchId == divergeNode.branchId);
+
+  // 2. Find ALL branches that forked from this specific node
+  final forks = plan.branches
+      .where((b) => b.divergedFromNodeId == divergeNode.nodeId)
+      .toList();
+
+  // 3. If the current node IS a divergence point (e.g., we are already on a branch), 
+  // we also need to include the "Parent" path as an option so we can go back.
+  // We add the branch that the divergeNode belongs to, plus all other forks.
+  
+  final Map<String, Branch> distinctOptions = {};
+  distinctOptions[baseBranch.branchId] = baseBranch;
+  for (var f in forks) {
+    distinctOptions[f.branchId] = f;
+  }
+
+  return distinctOptions.values.toList();
+}
+
+List<_RoadmapItem> _buildItems(Plan plan) {
+  final activePath = _resolveActivePath(plan, _activeBranchId);
+  final ancestryChain = _getAncestryChain(plan, _activeBranchId);
+  final ancestorBranchIds = ancestryChain.map((b) => b.branchId).toSet();
+
+  final items = <_RoadmapItem>[];
+
+  for (final node in activePath) {
+    // Determine if this node is a "Junction Point"
+    // A junction exists if ANY branch in the entire plan diverged from this nodeId
+    final forksAtThisNode = plan.branches.where((b) => b.divergedFromNodeId == node.nodeId).toList();
+    
+    if (forksAtThisNode.isNotEmpty) {
+      // Add the node that leads up to the choice
       items.add(_NormalItem(node));
 
-      final siblings = plan.branches
-          .where((b) =>
-              b.divergedFromNodeId == node.nodeId &&
-              b.branchId != _activeBranchId)
-          .toList();
+      // Create the Junction
+      // The options are: the current path's continuation OR any of the forks
+      final options = _branchOptionsAt(plan, node);
+      
+      // Determine which branch to "label" the junction with.
+      // If our active branch is one of the forks, show that. 
+      // Otherwise, show the base branch.
+      final activeOption = options.firstWhere(
+        (o) => ancestorBranchIds.contains(o.branchId) && o.branchId != node.branchId,
+        orElse: () => options.firstWhere((o) => o.branchId == node.branchId)
+      );
 
-      for (final sibling in siblings) {
-        final firstNode =
-            plan.nodes.firstWhere((n) => n.nodeId == sibling.firstNodeId);
-        items.add(_BranchJunctionItem(sibling, firstNode));
-      }
-
-      if (activeBranch.divergedFromNodeId == node.nodeId) {
-        final parentBranchId = activeBranch.parentBranchId!;
-        final parentNodes = plan.nodes
-            .where((n) => n.branchId == parentBranchId)
-            .toList()
-          ..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
-
-        final nextParentNode = parentNodes
-            .where((n) => n.nodeNumber > node.nodeNumber)
-            .firstOrNull;
-
-        if (nextParentNode != null) {
-          final parentBranch =
-              plan.branches.firstWhere((b) => b.branchId == parentBranchId);
-          items.add(_BranchJunctionItem(parentBranch, nextParentNode));
+      // Find the representative node for the junction card
+      PlanNode junctionNode;
+      if (activeOption.branchId == node.branchId) {
+        // Show the next node in the current branch
+        final continuation = plan.nodes
+            .where((n) => n.branchId == node.branchId && n.nodeNumber > node.nodeNumber)
+            .toList()..sort((a, b) => a.nodeNumber.compareTo(b.nodeNumber));
+        
+        if (continuation.isNotEmpty) {
+          junctionNode = continuation.first;
+          items.add(_BranchJunctionItem(activeOption, junctionNode, options));
         }
+      } else {
+        // Show the first node of the selected fork
+        junctionNode = plan.nodes.firstWhere((n) => n.nodeId == activeOption.firstNodeId);
+        items.add(_BranchJunctionItem(activeOption, junctionNode, options));
+      }
+    } else {
+      // Regular node with no forks - only add if it wasn't just handled by a junction
+      if (!items.any((item) => item is _BranchJunctionItem && item.firstNode.nodeId == node.nodeId)) {
+        items.add(_NormalItem(node));
       }
     }
-
-    return items;
   }
+
+  // Final Pass: Remove duplicate nodes that might have been added by _resolveActivePath
+  // but are already displayed inside a BranchJunctionWidget.
+  final finalItems = <_RoadmapItem>[];
+  final Set<String> seenNodeIds = {};
+
+  for (var item in items) {
+    String id = (item is _NormalItem) ? item.node.nodeId : (item as _BranchJunctionItem).firstNode.nodeId;
+    if (!seenNodeIds.contains(id)) {
+      finalItems.add(item);
+      seenNodeIds.add(id);
+    }
+  }
+
+  return finalItems;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +270,123 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
                   : _buildList(_plan!),
+          // ── Node detail overlay ──────────────────────────────────────────
+          if (_selectedNode != null && _plan != null) ...[
+            // Dark barrier — only tappable to dismiss when card is visible
+            if (!_planCardCollapsed)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: _dismissNodeOverlay,
+                  child: Container(color: Colors.black54),
+                ),
+              ),
+            // Full PlanCard (hidden once chat starts)
+            if (!_planCardCollapsed)
+              Positioned(
+                left: 16,
+                right: 16,
+                top: 24,
+                bottom: 88,
+                child: SingleChildScrollView(
+                  child: PlanCard(
+                    planId: widget.planId,
+                    title: _selectedNode!.title,
+                    description: '',
+                    cardColor: Color(_plan!.primaryColorValue),
+                    currentTask: _selectedNode!.title,
+                    currentStep: _selectedNode!.nodeNumber - 1,
+                    totalSteps: _plan!.nodes.length,
+                    nodeDescription: _selectedNode!.description.isNotEmpty
+                        ? _selectedNode!.description
+                        : null,
+                    resources: _selectedNode!.resources,
+                    notes: _selectedNode!.notes,
+                    currentNodeId: _selectedNode!.nodeId,
+                    startExpanded: true,
+                    onClose: _dismissNodeOverlay,
+                    onMarkComplete: () {
+                      final planId = widget.planId;
+                      final nodeId = _selectedNode!.nodeId;
+                      _dismissNodeOverlay();
+                      if (planId != null) {
+                        context
+                            .read<PlansProvider>()
+                            .logProgress(planId, nodeId, status: 'completed')
+                            .then((_) {
+                          if (mounted) _loadPlan();
+                        });
+                      }
+                    },
+                    onAddNote: () {
+                      final planId = widget.planId;
+                      final nodeId = _selectedNode!.nodeId;
+                      if (planId == null) return;
+                      QuickNoteDialog.show(context).then((content) {
+                        if (content == null || content.isEmpty) return;
+                        context
+                            .read<PlansProvider>()
+                            .addNote(planId, nodeId, content)
+                            .then((_) {
+                          if (mounted) _loadPlan();
+                        });
+                      });
+                    },
+                  ),
+                ),
+              ),
+            // Mini strip shown when the card collapses for chat
+            if (_planCardCollapsed)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 56,
+                child: _buildMiniStrip(),
+              ),
+            // ChatOverlay — always present when a node is selected
+            if (widget.planId != null)
+              Positioned.fill(
+                child: ChatOverlay(
+                  planTitle: _selectedNode!.title,
+                  planId: widget.planId,
+                  planCardColor: Color(_plan!.primaryColorValue),
+                  nodeId: _selectedNode!.nodeId,
+                  nodeTitle: _selectedNode!.title,
+                  nodeNumber: _selectedNode!.nodeNumber,
+                  onPlanChatStarted: () =>
+                      setState(() => _planCardCollapsed = true),
+                  onPlanChatDismissed: () {
+                    setState(() => _planCardCollapsed = false);
+                    _loadPlan();
+                  },
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStrip() {
+    return Container(
+      color: AppColors.background.withValues(alpha: 0.96),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          const Icon(Icons.edit_outlined,
+              color: AppColors.textSecondary, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _selectedNode?.title ?? '',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -258,12 +410,15 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                 displayNumber: i + 1,
                 onTap: () => _showNodeDetail(node),
               ),
-            _BranchJunctionItem(:final branch, :final firstNode) =>
+            _BranchJunctionItem(
+                  :final branch,
+                  :final firstNode,
+                  :final relatedBranches) =>
               BranchJunctionWidget(
                 key: ValueKey('junction_${branch.branchId}'),
                 branch: branch,
                 branchNode: firstNode,
-                allBranches: plan.branches,
+                relatedBranches: relatedBranches,
                 activeBranchId: _activeBranchId,
                 onBranchSwitch: _switchBranch,
                 isLast: i == items.length - 1,
