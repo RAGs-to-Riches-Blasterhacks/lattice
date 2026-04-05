@@ -82,10 +82,25 @@ class _SignupScreenState extends State<SignupScreen> {
 
     final auth = context.read<AuthProvider>();
     try {
+      // Build location prefs if the user provided location data
+      final locationText = _selectedLocation ?? _locationController.text.trim();
+      Map<String, dynamic>? locationPrefs;
+      if (locationText.isNotEmpty) {
+        final parts = locationText.split(', ');
+        locationPrefs = {
+          'opted_in': true,
+          'city': parts.isNotEmpty ? parts[0] : null,
+          'state': parts.length > 1 ? parts[1] : null,
+          'country': parts.length > 2 ? parts[2] : null,
+        };
+      }
+
       await auth.register(
         email: email,
         password: password,
         displayName: displayName,
+        timezone: timezone,
+        location: locationPrefs,
       );
       if (mounted) {
         await AppNavigation.goToHome(context);
