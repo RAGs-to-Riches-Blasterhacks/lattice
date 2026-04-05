@@ -5,7 +5,7 @@ import 'package:lattice/themes/app_colors.dart';
 class BranchJunctionWidget extends StatelessWidget {
   final Branch branch;
   final PlanNode branchNode;
-  final List<Branch> allBranches;
+  final List<Branch> relatedBranches;
   final String activeBranchId;
   final ValueChanged<String> onBranchSwitch;
   final bool isLast;
@@ -15,7 +15,7 @@ class BranchJunctionWidget extends StatelessWidget {
     super.key,
     required this.branch,
     required this.branchNode,
-    required this.allBranches,
+    required this.relatedBranches,
     required this.activeBranchId,
     required this.onBranchSwitch,
     required this.isLast,
@@ -202,7 +202,7 @@ class BranchJunctionWidget extends StatelessWidget {
     return PopupMenuButton<String>(
       onSelected: onBranchSwitch,
       color: AppColors.cardBackground,
-      itemBuilder: (context) => allBranches
+      itemBuilder: (context) => relatedBranches
           .map(
             (b) => PopupMenuItem<String>(
               value: b.branchId,

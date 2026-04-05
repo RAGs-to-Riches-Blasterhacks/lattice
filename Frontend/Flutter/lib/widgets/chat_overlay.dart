@@ -21,6 +21,13 @@ class ChatOverlay extends StatefulWidget {
   final String? planId;
   final Color? planCardColor;
 
+  /// When set, the first message sent will have node context injected into
+  /// the API payload (invisible to the UI) so the plan_updater agent knows
+  /// exactly which node to target.
+  final String? nodeId;
+  final String? nodeTitle;
+  final int? nodeNumber;
+
   /// Called when the user dismisses the plan-context chat (handle drag or
   /// arrow tap). The parent should re-expand the PlanCard.
   final VoidCallback? onPlanChatDismissed;
@@ -38,6 +45,9 @@ class ChatOverlay extends StatefulWidget {
     this.planTitle,
     this.planId,
     this.planCardColor,
+    this.nodeId,
+    this.nodeTitle,
+    this.nodeNumber,
     this.onPlanChatDismissed,
     this.onPlanChatStarted,
     this.onPlanCreated,
@@ -149,16 +159,31 @@ class ChatOverlayState extends State<ChatOverlay>
 
     try {
       // Create a conversation on the first message.
+      // Always forward planId as a query param so the backend routes to
+      // the plan_updater agent instead of the plan creator agent.
       if (_conversationId == null) {
-        final planId = _inPlanContext ? widget.planId : null;
-        final conv = await api.createConversation(planId: planId);
+        final conv = await api.createConversation(planId: widget.planId);
         _conversationId = conv.id;
+      }
+
+      // When in plan-context mode with a target node, inject node context
+      // into the first message so the agent knows which node to edit.
+      // The injected prefix is sent to the API only — not shown in the UI.
+      final String apiContent;
+      if (_inPlanContext &&
+          widget.nodeId != null &&
+          isFirstMessage) {
+        apiContent =
+            "[Context: modifying step ${widget.nodeNumber} — '${widget.nodeTitle}' "
+            "(node_id: ${widget.nodeId})]\n\nUser request: $text";
+      } else {
+        apiContent = text;
       }
 
       // Send the user's message and get the agent response.
       final conv = await api.sendMessage(
         _conversationId!,
-        content: text,
+        content: apiContent,
       );
 
       if (!mounted) return;
@@ -569,7 +594,11 @@ class ChatOverlayState extends State<ChatOverlay>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                const Icon(Icons.add, color: AppColors.textPrimary, size: 20),
+                Icon(
+                  _inPlanContext ? Icons.edit_outlined : Icons.add,
+                  color: AppColors.textPrimary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -582,7 +611,9 @@ class ChatOverlayState extends State<ChatOverlay>
                     decoration: InputDecoration(
                       hintText: _chatActive
                           ? 'Type a message...'
-                          : 'Want to start a plan?',
+                          : (_inPlanContext
+                              ? 'Make a modification...'
+                              : 'Want to start a plan?'),
                       hintStyle:
                           const TextStyle(color: AppColors.textSecondary),
                       border: InputBorder.none,
