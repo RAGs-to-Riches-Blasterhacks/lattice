@@ -21,10 +21,15 @@ def init_firebase() -> firebase_admin.App:
         if _app is not None:
             return _app
 
-        if settings.FIREBASE_CREDENTIALS_JSON:
+        if settings.FIREBASE_CREDENTIALS_JSON and settings.FIREBASE_CREDENTIALS_JSON.strip():
             cred = credentials.Certificate(json.loads(settings.FIREBASE_CREDENTIALS_JSON))
-        else:
+        elif settings.FIREBASE_CREDENTIALS_PATH:
             cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+        else:
+            raise RuntimeError(
+                "Firebase credentials not configured. "
+                "Set FIREBASE_CREDENTIALS_JSON or FIREBASE_CREDENTIALS_PATH."
+            )
         _app = firebase_admin.initialize_app(cred)
         return _app
 

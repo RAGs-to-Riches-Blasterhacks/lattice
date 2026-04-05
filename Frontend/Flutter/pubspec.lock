@@ -797,6 +797,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
+  workfire:
+    dependency: "direct main"
+    description:
+      name: workfire
+      sha256: c50337365c66f0780f80af862c2a9c257e9a8e06dda5a6f73ca4b9a26ed5732e
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   xdg_directories:
     dependency: transitive
     description:
