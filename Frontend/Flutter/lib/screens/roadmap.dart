@@ -359,6 +359,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                     setState(() => _planCardCollapsed = false);
                     _loadPlan();
                   },
+                  onPlanUpdated: _loadPlan,
                 ),
               ),
           ],

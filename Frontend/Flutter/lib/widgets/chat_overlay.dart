@@ -40,6 +40,10 @@ class ChatOverlay extends StatefulWidget {
   /// The parent should refresh the plans list.
   final VoidCallback? onPlanCreated;
 
+  /// Called after the plan-updater agent responds (e.g. branch created,
+  /// node edited). The parent should reload the plan to reflect changes.
+  final VoidCallback? onPlanUpdated;
+
   const ChatOverlay({
     super.key,
     this.planTitle,
@@ -51,6 +55,7 @@ class ChatOverlay extends StatefulWidget {
     this.onPlanChatDismissed,
     this.onPlanChatStarted,
     this.onPlanCreated,
+    this.onPlanUpdated,
   });
 
   @override
@@ -207,6 +212,12 @@ class ChatOverlayState extends State<ChatOverlay>
           final planConv = await api.createConversation(planId: newPlanId);
           _conversationId = planConv.id;
           widget.onPlanCreated?.call();
+        }
+
+        // If we're in plan-context mode, the agent may have edited a node
+        // or created a branch — notify the parent to reload the plan.
+        if (_inPlanContext) {
+          widget.onPlanUpdated?.call();
         }
       }
     } on ApiException catch (e) {
