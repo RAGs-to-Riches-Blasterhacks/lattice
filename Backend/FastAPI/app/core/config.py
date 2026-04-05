@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     MONGO_URI: str = "mongodb://localhost:27017"
     MONGO_DB_NAME: str = "lattice-test"
 
-    FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
+    FIREBASE_CREDENTIALS_PATH: str = ""
     FIREBASE_CREDENTIALS_JSON: str = ""  # Full JSON string (for cloud deploys without a file)
     FIREBASE_API_KEY: str = ""  # Firebase Web API key (for email/password sign-in)
 
