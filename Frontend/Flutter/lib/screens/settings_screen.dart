@@ -12,11 +12,14 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const TopNav(),
       drawer: const AppDrawer(),
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
+          ),
           // Scrollable settings content
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),

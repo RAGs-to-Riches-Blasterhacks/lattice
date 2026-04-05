@@ -64,13 +64,18 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
               Image.asset('assets/LOGO.png', width: 200),
               const SizedBox(height: 40),
               _buildField(_emailController, 'Email',
@@ -127,6 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+        ),
+        ],
       ),
     );
   }

@@ -24,11 +24,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const TopNav(),
       drawer: const AppDrawer(),
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
             child: Column(

@@ -403,12 +403,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _bodySize.height > 0 ? _bodySize.height - _cardRect.bottom : 0.0;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const TopNav(),
       drawer: const AppDrawer(),
       body: Stack(
         key: _bodyStackKey,
+        fit: StackFit.expand,
         children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.gradientBackground),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
