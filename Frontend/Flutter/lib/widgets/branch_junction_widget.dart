@@ -11,6 +11,8 @@ class BranchJunctionWidget extends StatelessWidget {
   final bool isLast;
   final int displayNumber;
 
+  final VoidCallback? onNodeTap;
+
   const BranchJunctionWidget({
     super.key,
     required this.branch,
@@ -20,6 +22,7 @@ class BranchJunctionWidget extends StatelessWidget {
     required this.onBranchSwitch,
     required this.isLast,
     required this.displayNumber,
+    this.onNodeTap,
   });
 
   Color get _statusColor {
@@ -84,7 +87,10 @@ class BranchJunctionWidget extends StatelessWidget {
         // Right column mirrors a normal node's left column: circle at the top,
         // then a vertical line below it (if not last) that feeds into the
         // closing elbow.
-        IntrinsicHeight(
+        GestureDetector(
+          onTap: onNodeTap,
+          behavior: HitTestBehavior.opaque,
+        child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -171,6 +177,7 @@ class BranchJunctionWidget extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
 
         // ── Closing elbow ─────────────────────────────────────────────────────

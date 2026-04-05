@@ -438,6 +438,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                 onBranchSwitch: _switchBranch,
                 isLast: i == items.length - 1,
                 displayNumber: i + 1,
+                onNodeTap: () => _showNodeDetail(firstNode),
               ),
           },
       ],
