@@ -9,7 +9,11 @@ class ProfileHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final plans = context.watch<PlansProvider>().plans;
+    final plans = context
+        .watch<PlansProvider>()
+        .plans
+        .where((p) => p.status == PlanStatus.completed || p.status == PlanStatus.abandoned)
+        .toList();
 
     if (plans.isEmpty) {
       return const Center(

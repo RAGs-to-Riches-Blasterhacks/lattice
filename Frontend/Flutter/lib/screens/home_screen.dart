@@ -394,7 +394,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final plansProvider = context.watch<PlansProvider>();
-    final plans = plansProvider.plans;
+    final plans = plansProvider.plans
+        .where((p) =>
+            p.status == PlanStatus.active || p.status == PlanStatus.paused)
+        .toList();
 
     final overlayBottom =
         _bodySize.height > 0 ? _bodySize.height - _cardRect.bottom : 0.0;
