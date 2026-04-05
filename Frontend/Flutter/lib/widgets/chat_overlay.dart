@@ -40,6 +40,10 @@ class ChatOverlay extends StatefulWidget {
   /// The parent should refresh the plans list.
   final VoidCallback? onPlanCreated;
 
+  /// Called after the plan-updater agent responds (e.g. branch created,
+  /// node edited). The parent should reload the plan to reflect changes.
+  final VoidCallback? onPlanUpdated;
+
   const ChatOverlay({
     super.key,
     this.planTitle,
@@ -51,6 +55,7 @@ class ChatOverlay extends StatefulWidget {
     this.onPlanChatDismissed,
     this.onPlanChatStarted,
     this.onPlanCreated,
+    this.onPlanUpdated,
   });
 
   @override
@@ -104,23 +109,6 @@ class ChatOverlayState extends State<ChatOverlay>
     ).animate(CurvedAnimation(parent: _planChatAnim, curve: Curves.easeOut));
     _planChatFade =
         CurvedAnimation(parent: _planChatAnim, curve: Curves.easeOut);
-  }
-
-  @override
-  void didUpdateWidget(ChatOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // If we left plan context (card collapsed externally), reset chat.
-    if (oldWidget.planTitle != null && widget.planTitle == null && _chatActive) {
-      _planChatAnim.reverse();
-      _overlayAnim.reverse().then((_) {
-        if (mounted) {
-          setState(() {
-            _messages.clear();
-            _conversationId = null;
-          });
-        }
-      });
-    }
   }
 
   @override
@@ -207,6 +195,12 @@ class ChatOverlayState extends State<ChatOverlay>
           final planConv = await api.createConversation(planId: newPlanId);
           _conversationId = planConv.id;
           widget.onPlanCreated?.call();
+        }
+
+        // If we're in plan-context mode, the agent may have edited a node
+        // or created a branch — notify the parent to reload the plan.
+        if (_inPlanContext) {
+          widget.onPlanUpdated?.call();
         }
       }
     } on ApiException catch (e) {

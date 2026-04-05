@@ -65,19 +65,33 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
       setState(() {
         _plan = plan;
         _activeBranchId = plan.activeBranchId;
-      });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = _inProgressKey.currentContext;
-        if (ctx != null) {
-          Scrollable.ensureVisible(
-            ctx,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOut,
-            alignment: 0.25,
-          );
+        // Keep selected node in sync with fresh plan data.
+        if (_selectedNode != null) {
+          final freshNode = plan.nodes.cast<PlanNode?>().firstWhere(
+                (n) => n!.nodeId == _selectedNode!.nodeId,
+                orElse: () => null,
+              );
+          if (freshNode != null) {
+            _selectedNode = freshNode;
+          }
         }
       });
+
+      // Only auto-scroll when no node is selected (chat not open).
+      if (_selectedNode == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _inProgressKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeInOut,
+              alignment: 0.25,
+            );
+          }
+        });
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     }
@@ -346,6 +360,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
             // ChatOverlay — always present when a node is selected
             if (widget.planId != null)
               Positioned.fill(
+                key: const ValueKey('roadmap_chat_overlay'),
                 child: ChatOverlay(
                   planTitle: _selectedNode!.title,
                   planId: widget.planId,
@@ -357,8 +372,8 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                       setState(() => _planCardCollapsed = true),
                   onPlanChatDismissed: () {
                     setState(() => _planCardCollapsed = false);
-                    _loadPlan();
                   },
+                  onPlanUpdated: () => _loadPlan(),
                 ),
               ),
           ],
