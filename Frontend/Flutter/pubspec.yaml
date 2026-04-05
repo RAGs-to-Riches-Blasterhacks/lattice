@@ -31,6 +31,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -39,3 +40,9 @@ flutter:
     - lib/mock-data/
     - assets/LOGO.png
     - assets/Profile.svg
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/CircleLogoApp.png"
+  adaptive_icon_background: "#000000" # Optional: for Android adaptive icons
