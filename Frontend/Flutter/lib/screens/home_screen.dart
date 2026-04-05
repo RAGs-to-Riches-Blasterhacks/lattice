@@ -269,6 +269,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           totalSteps: plan.nodeCount,
           nodeDescription: plan.currentNodeDescription,
           resources: plan.currentNodeResources,
+          notes: plan.currentNodeNotes,
           currentNodeId: plan.currentNodeId,
           onTap: onTap,
           onMarkComplete: plan.currentNodeId != null
@@ -554,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           totalSteps: frontPlan.nodeCount,
                           nodeDescription: frontPlan.currentNodeDescription,
                           resources: frontPlan.currentNodeResources,
+                          notes: frontPlan.currentNodeNotes,
                           currentNodeId: frontPlan.currentNodeId,
                           startExpanded: true,
                           onTap: _planChatActive
