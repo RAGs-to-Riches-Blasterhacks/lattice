@@ -273,9 +273,9 @@ Resources per node:
 - is_optional: mark supplementary resources as true, core ones as false
 
 Palette rules:
-- Pick 5 colors: primary, secondary, accent, background, text
+- Pick 1 color: background
 - The PRIMARY color is the card background color the user sees every day. It MUST be strongly tied to the skill's emotional or visual identity. Derive the hue from the skill itself — think about what color this subject evokes in the real world, not what a generic app would use.
-- CRITICAL — avoid lazy defaults: Blue, green, peach/coral, and yellow/gold/amber are the most overused defaults. Do NOT reach for any of them unless the skill genuinely demands it. Force yourself to consider the full hue wheel before settling. A skilled designer would use:
+- CRITICAL — Force yourself to consider the full hue wheel before settling. A skilled designer would use:
   - Reds / burgundy for passion-driven or high-energy skills
   - Oranges for craft or warmth (distinct from yellow — more red in it)
   - Yellows / gold ONLY for skills with a literal solar, harvest, or metallic association

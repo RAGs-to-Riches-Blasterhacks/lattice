@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import threading
@@ -34,6 +35,10 @@ def init_firebase() -> firebase_admin.App:
         ).strip()
 
         if creds_json:
+            try:
+                creds_json = base64.b64decode(creds_json).decode("utf-8")
+            except Exception:
+                pass  # Not base64 — treat as raw JSON string
             cred = credentials.Certificate(json.loads(creds_json))
         elif settings.FIREBASE_CREDENTIALS_PATH:
             cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
