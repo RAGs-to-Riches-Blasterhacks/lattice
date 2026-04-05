@@ -49,6 +49,17 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await auth.login(email: email, password: password);
       }
+
+      if (mounted) {
+        // Option A: If using named routes
+        Navigator.pushReplacementNamed(context, '/home'); 
+
+        // Option B: If using standard MaterialPageRoute
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const HomeScreen()), 
+        // );
+      }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

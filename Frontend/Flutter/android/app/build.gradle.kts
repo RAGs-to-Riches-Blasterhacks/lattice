@@ -1,8 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -30,29 +39,23 @@ android {
         versionName = flutter.versionName
     }
 
-    signingConfigs {
+    
+
+signingConfigs {
         create("release") {
-            val props = java.util.Properties()
-            val keyPropsFile = rootProject.file("key.properties")
-            if (keyPropsFile.exists()) {
-                props.load(keyPropsFile.inputStream())
-                storeFile = file(props["storeFile"] as String)
-                storePassword = props["storePassword"] as String
-                keyAlias = props["keyAlias"] as String
-                keyPassword = props["keyPassword"] as String
-            }
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+            storePassword = keystoreProperties.getProperty("storePassword")
         }
     }
 
     buildTypes {
         release {
-            val releaseConfig = signingConfigs.findByName("release")
-            signingConfig = if (releaseConfig?.storeFile?.exists() == true)
-                releaseConfig
-            else
-                signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
+
 }
 
 flutter {
