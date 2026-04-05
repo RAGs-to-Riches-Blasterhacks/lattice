@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/themes/app_colors.dart';
@@ -15,6 +16,7 @@ class PlanCard extends StatefulWidget {
   final int totalSteps;
   final String? nodeDescription;
   final List<Resource> resources;
+  final List<NodeNote> notes;
 
   /// The node ID of the current (active) node for quick actions.
   final String? currentNodeId;
@@ -34,6 +36,10 @@ class PlanCard extends StatefulWidget {
   /// Called when the user taps "Add Note" on the expanded card.
   final VoidCallback? onAddNote;
 
+  /// When provided, the header shows an X button instead of a collapse arrow,
+  /// and tapping the card body does not toggle expand/collapse.
+  final VoidCallback? onClose;
+
   const PlanCard({
     super.key,
     this.planId,
@@ -46,6 +52,7 @@ class PlanCard extends StatefulWidget {
     this.totalSteps = 0,
     this.nodeDescription,
     this.resources = const [],
+    this.notes = const [],
     this.currentNodeId,
     this.collapsedAspectRatio = 1.45,
     this.onTap,
@@ -53,40 +60,62 @@ class PlanCard extends StatefulWidget {
     this.onExpandChanged,
     this.onMarkComplete,
     this.onAddNote,
+    this.onClose,
   });
 
   @override
   State<PlanCard> createState() => _PlanCardState();
 }
 
-class _PlanCardState extends State<PlanCard> {
-  late bool _isExpanded;
+class _PlanCardState extends State<PlanCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _anim;
+  bool _isExpanded = false;
   bool _isButtonPressed = false;
 
   @override
   void initState() {
     super.initState();
-    _isExpanded = false;
-    if (widget.startExpanded) {
-      // Defer so the widget is laid out first, letting AnimatedCrossFade
-      // animate from collapsed → expanded rather than starting expanded.
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _anim = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+
+    if (widget.startExpanded || widget.onClose != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _isExpanded = true);
+        if (mounted) {
+          setState(() => _isExpanded = true);
+          _controller.forward();
+        }
       });
     }
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void _toggleExpand() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-    });
+    setState(() => _isExpanded = !_isExpanded);
+    if (_isExpanded) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
     widget.onExpandChanged?.call(_isExpanded);
   }
 
   @override
   Widget build(BuildContext context) {
+    final VoidCallback? tapHandler =
+        widget.onClose != null ? null : (widget.onTap ?? _toggleExpand);
+
     return GestureDetector(
-      onTap: widget.onTap ?? _toggleExpand,
+      onTap: tapHandler,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20.0),
@@ -103,25 +132,97 @@ class _PlanCardState extends State<PlanCard> {
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Use actual available width instead of MediaQuery so the card
-            // measures correctly regardless of what container it lives in.
             final double innerCollapsedHeight =
                 (constraints.maxWidth / widget.collapsedAspectRatio) - 40;
-            return ClipRect(
-              child: AnimatedCrossFade(
-                duration: const Duration(milliseconds: 300),
-                alignment: Alignment.topCenter,
-                crossFadeState: _isExpanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                sizeCurve: Curves.easeInOut,
-                firstChild: SizedBox(
-                  height: innerCollapsedHeight,
-                  width: double.infinity,
-                  child: _buildCollapsedContent(),
-                ),
-                secondChild: _buildExpandedContent(),
-              ),
+
+            return AnimatedBuilder(
+              animation: _anim,
+              builder: (context, _) {
+                // The extra content is animated via Align(heightFactor) + FadeTransition.
+                // Persistent content (title, description, pill) is always present so it
+                // never snaps or jumps — only the extra content slides/fades in and out.
+                return ClipRect(
+                  child: ConstrainedBox(
+                    // Enforce the collapsed aspect-ratio height when collapsed,
+                    // and smoothly relax it as the card expands.
+                    constraints: BoxConstraints(
+                      minHeight: innerCollapsedHeight * (1.0 - _anim.value),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Title row ───────────────────────────────────────
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  widget.title,
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Collapse/close icon fades in with the expanded content.
+                            FadeTransition(
+                              opacity: _anim,
+                              child: widget.onClose != null
+                                  ? GestureDetector(
+                                      onTap: widget.onClose,
+                                      child: const Icon(Icons.close,
+                                          size: 32, color: Colors.black87),
+                                    )
+                                  :const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          size: 32,
+                                          color: Colors.black87),
+                                    
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // ── Description ─────────────────────────────────────
+                        if (widget.description.isNotEmpty) ...[
+                          Text(
+                            widget.description,
+                            maxLines: _isExpanded ? null : 2,
+                            overflow: _isExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 18,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        // ── TODO pill ────────────────────────────────────────
+                        _buildTodoPill(),
+                        // ── Extra expanded content (animated) ────────────────
+                        ClipRect(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            heightFactor: _anim.value,
+                            child: FadeTransition(
+                              opacity: _anim,
+                              child: _buildExtraContent(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),
@@ -169,209 +270,24 @@ class _PlanCardState extends State<PlanCard> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12.0),
+            padding: EdgeInsets.only(right: 12.0),
             child: Text('🔥 ${widget.streak}',
-                style: const TextStyle(fontSize: 20)),
+                style: TextStyle(fontSize: 20, color: AppColors.background),
+          ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard({required String title, required List<String> items}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                decoration: TextDecoration.underline),
-          ),
-          const SizedBox(height: 8),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Expanded(
-                        child: Text(item,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14))),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
+  // ─── EXTRA EXPANDED CONTENT ───────────────────────────────────────────────
+  // Everything below the persistent header (title, description, pill).
 
-  Widget _buildResourcesCard(List<Resource> resources) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Resources:',
-            style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                decoration: TextDecoration.underline),
-          ),
-          const SizedBox(height: 8),
-          ...resources.map((r) => Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: GestureDetector(
-                  onTap: () => launchUrl(Uri.parse(r.url),
-                      mode: LaunchMode.externalApplication),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${_resourceIcon(r.type)} ',
-                          style: const TextStyle(fontSize: 16)),
-                      Expanded(
-                        child: Text(
-                          r.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  String _resourceIcon(ResourceType type) {
-    switch (type) {
-      case ResourceType.youtube:
-        return '▶';
-      case ResourceType.article:
-        return '📄';
-      case ResourceType.book:
-        return '📖';
-      case ResourceType.exercise:
-        return '💪';
-      case ResourceType.event:
-        return '📅';
-    }
-  }
-
-  // ─── QUICK ACTION BUTTONS (Expanded State) ────────────────────────────────
-
-  Widget _buildQuickActions() {
-    return Row(
-      children: [
-        if (widget.onMarkComplete != null)
-          Expanded(
-            child: _QuickActionButton(
-              icon: Icons.check_circle_outline_rounded,
-              label: 'Mark Done',
-              color: const Color(0xFF4CAF50),
-              onTap: widget.onMarkComplete!,
-            ),
-          ),
-        if (widget.onMarkComplete != null && widget.onAddNote != null)
-          const SizedBox(width: 10),
-        if (widget.onAddNote != null)
-          Expanded(
-            child: _QuickActionButton(
-              icon: Icons.note_add_outlined,
-              label: 'Add Note',
-              color: const Color(0xFF4A7C94),
-              onTap: widget.onAddNote!,
-            ),
-          ),
-      ],
-    );
-  }
-
-  // ─── COLLAPSED STATE (List View) ──────────────────────────────────────────
-
-  Widget _buildCollapsedContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.title,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Expanded forces the description to take up any empty vertical space,
-        // which pins the TODO pill cleanly to the bottom of the container.
-        Text(
-          widget.description,
-          overflow: TextOverflow
-              .fade, // Gracefully fades out text if it's too long for the ratio
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            height: 1.3,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildTodoPill(),
-      ],
-    );
-  }
-
-  // ─── EXPANDED STATE (Detail View) ─────────────────────────────────────────
-
-  Widget _buildExpandedContent() {
+  Widget _buildExtraContent() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 32, color: Colors.black87),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          widget.description,
-          style:
-              const TextStyle(color: Colors.black87, fontSize: 18, height: 1.3),
-        ),
-        const SizedBox(height: 20),
-        _buildTodoPill(),
         if (widget.currentNodeId != null &&
             (widget.onMarkComplete != null || widget.onAddNote != null)) ...[
           const SizedBox(height: 12),
@@ -380,14 +296,95 @@ class _PlanCardState extends State<PlanCard> {
         const SizedBox(height: 16),
         if (widget.nodeDescription != null &&
             widget.nodeDescription!.isNotEmpty)
-          _buildInfoCard(
-            title: 'What To Do:',
-            items: [widget.nodeDescription!],
+          _CollapsibleSection(
+            title: 'What To Do',
+            expandedContent: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    widget.nodeDescription!,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
           ),
         if (widget.resources.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _buildResourcesCard(widget.resources),
+          _CollapsibleSection(
+            title: 'Resources',
+            expandedContent: Column(
+              children: widget.resources
+                  .map((r) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6.0),
+                        child: GestureDetector(
+                          onTap: () => launchUrl(Uri.parse(r.url),
+                              mode: LaunchMode.externalApplication),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${_resourceIcon(r.type)} ',
+                                  style: const TextStyle(fontSize: 16)),
+                              Expanded(
+                                child: Text(
+                                  r.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
         ],
+        const SizedBox(height: 16),
+        _CollapsibleSection(
+          title: 'Notes',
+          expandedContent: widget.notes.isEmpty
+              ? const Text(
+                  'No notes yet.',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black54),
+                )
+              : Column(
+                  children: widget.notes
+                      .map((n) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  n.content,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  DateFormat('MMM d, h:mm a')
+                                      .format(n.createdAt.toLocal()),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.black54),
+                                ),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ),
+        ),
         const SizedBox(height: 24),
         Center(
           child: Listener(
@@ -441,6 +438,124 @@ class _PlanCardState extends State<PlanCard> {
           ),
         ),
       ],
+    );
+  }
+
+  // ─── QUICK ACTION BUTTONS ─────────────────────────────────────────────────
+
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        if (widget.onMarkComplete != null)
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Mark Done',
+              color: const Color(0xFF4CAF50),
+              onTap: widget.onMarkComplete!,
+            ),
+          ),
+        if (widget.onMarkComplete != null && widget.onAddNote != null)
+          const SizedBox(width: 10),
+        if (widget.onAddNote != null)
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.note_add_outlined,
+              label: 'Add Note',
+              color: const Color(0xFF4A7C94),
+              onTap: widget.onAddNote!,
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _resourceIcon(ResourceType type) {
+    switch (type) {
+      case ResourceType.youtube:
+        return '▶';
+      case ResourceType.article:
+        return '📄';
+      case ResourceType.book:
+        return '📖';
+      case ResourceType.exercise:
+        return '💪';
+      case ResourceType.event:
+        return '📅';
+    }
+  }
+}
+
+/// A collapsible section card used in the expanded PlanCard detail view.
+class _CollapsibleSection extends StatefulWidget {
+  final String title;
+  final Widget expandedContent;
+
+  const _CollapsibleSection({
+    required this.title,
+    required this.expandedContent,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: AnimatedCrossFade(
+          duration: const Duration(milliseconds: 250),
+          sizeCurve: Curves.easeInOut,
+          crossFadeState:
+              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          firstChild: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${widget.title}: . . .',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down, size: 20),
+            ],
+          ),
+          secondChild: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${widget.title}:',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_up, size: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              widget.expandedContent,
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
