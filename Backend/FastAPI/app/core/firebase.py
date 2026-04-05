@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 
 import firebase_admin
@@ -21,8 +22,14 @@ def init_firebase() -> firebase_admin.App:
         if _app is not None:
             return _app
 
-        if settings.FIREBASE_CREDENTIALS_JSON and settings.FIREBASE_CREDENTIALS_JSON.strip():
-            cred = credentials.Certificate(json.loads(settings.FIREBASE_CREDENTIALS_JSON))
+        # Try env var directly (bypasses pydantic-settings) then fall back to settings
+        creds_json = (
+            settings.FIREBASE_CREDENTIALS_JSON
+            or os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
+        ).strip()
+
+        if creds_json:
+            cred = credentials.Certificate(json.loads(creds_json))
         elif settings.FIREBASE_CREDENTIALS_PATH:
             cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
         else:
