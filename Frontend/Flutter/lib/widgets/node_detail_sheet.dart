@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lattice/models/plan_node.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/action_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Bottom sheet that shows full details for a plan node and exposes
@@ -514,34 +515,40 @@ class _ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (status) {
-      NodeStatus.not_started => _buildButton(
+      NodeStatus.not_started => ActionButton(
+          icon: Icons.play_arrow_rounded,
           label: 'Start Task',
           color: AppColors.accent,
-          onTap: () => onStatusChange('in_progress'),
+          onTap: submitting ? null : () => onStatusChange('in_progress'),
+          isLoading: submitting,
         ),
       NodeStatus.in_progress => Column(
           children: [
-            _buildButton(
+            ActionButton(
+              icon: Icons.trending_up_rounded,
               label: 'Log Progress',
               color: AppColors.accent,
-              onTap: () => onStatusChange('in_progress'),
+              onTap: submitting ? null : () => onStatusChange('in_progress'),
+              isLoading: submitting,
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: _buildButton(
+                  child: ActionButton(
+                    icon: Icons.check_circle_outline_rounded,
                     label: 'Mark Complete',
                     color: AppColors.nodeCompleted,
-                    onTap: () => onStatusChange('completed'),
+                    onTap: submitting ? null : () => onStatusChange('completed'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildButton(
+                  child: ActionButton(
+                    icon: Icons.skip_next_rounded,
                     label: 'Skip',
                     color: AppColors.nodeSkipped,
-                    onTap: () => onStatusChange('skipped'),
+                    onTap: submitting ? null : () => onStatusChange('skipped'),
                   ),
                 ),
               ],
@@ -580,42 +587,5 @@ class _ActionButtons extends StatelessWidget {
           ),
         ),
     };
-  }
-
-  Widget _buildButton({
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: submitting ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color, width: 1.5),
-        ),
-        alignment: Alignment.center,
-        child: submitting
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: color,
-                ),
-              )
-            : Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-      ),
-    );
   }
 }

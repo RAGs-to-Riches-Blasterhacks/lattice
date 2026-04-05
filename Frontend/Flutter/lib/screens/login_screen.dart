@@ -3,6 +3,7 @@ import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/nav_button.dart';
 import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -93,41 +94,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.secondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.secondary,
-                              ),
-                            )
-                          : const Text(
-                              'Log In',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                    ),
+                  NavButton(
+                    label: 'Log In',
+                    onPressed: _submit,
+                    isLoading: _loading,
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
+                  NavButton(
+                    label: 'Need an account? Sign up',
                     onPressed: () => AppNavigation.goToSignup(context),
-                    child: const Text(
-                      'Need an account? Sign up',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
                   ),
                 ],
               ),

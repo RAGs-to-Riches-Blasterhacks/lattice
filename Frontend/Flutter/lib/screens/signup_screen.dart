@@ -5,6 +5,7 @@ import 'package:lattice/navigation/app_navigation.dart';
 import 'package:lattice/providers/auth_provider.dart';
 import 'package:lattice/services/api_service.dart';
 import 'package:lattice/themes/app_colors.dart';
+import 'package:lattice/widgets/nav_button.dart';
 import 'package:provider/provider.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -278,41 +279,15 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: AppColors.secondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.secondary,
-                              ),
-                            )
-                          : const Text(
-                              'Create Account',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                    ),
+                  NavButton(
+                    label: 'Create Account',
+                    onPressed: _submit,
+                    isLoading: _loading,
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
+                  NavButton(
+                    label: 'Already have an account? Log in',
                     onPressed: () => AppNavigation.goToLogin(context),
-                    child: const Text(
-                      'Already have an account? Log in',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
                   ),
                 ],
               ),
