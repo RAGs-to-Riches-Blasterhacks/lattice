@@ -232,6 +232,16 @@
   letter-spacing: 0.14rem;
 }
 
+.hero-description {
+  width: min(100%, 60rem);
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text-light) 82%, transparent);
+  font-size: clamp(1rem, 1.8vw, 1.12rem);
+  font-weight: 600;
+  line-height: 1.7;
+  text-align: center;
+}
+
 .section-divider {
   width: min(100%, 50rem);
   height: 1px;

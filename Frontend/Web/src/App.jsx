@@ -202,6 +202,17 @@ function App() {
 
             <StoreBadge badge={storeBadges.appStore} />
           </div>
+
+          <p className="hero-description">
+            Lattice is a mobile app that helps you turn a goal that you want to accomplish into a clear, step-by-step
+            plan. Instead of guessing what to do next, you get a personalized roadmap
+            and an easy way, to track your progress as you grow. 
+            With incetives, like streaks and milestones, Lattice is designed to keep 
+            you motivated and consistent with achieving your goals.
+
+            Flexibility is at the core of Lattice, so you can customize your plan to fit your unique needs and pace. 
+            Whether you want to learn a new language, get in shape, or build a new habit, Lattice helps you make progress every day.
+          </p>
         </div>
 
         <div className="section-divider" />
@@ -238,7 +249,7 @@ function App() {
         <div className="section-divider" />
 
         <section className="team-section" aria-labelledby="team-heading">
-          <h2 id="team-heading">Meet the team behind LATTICE!</h2>
+          <h2 id="team-heading">Meet the team behind Lattice!</h2>
 
           <div className="team-grid">
             {teamMembers.map((member) => (
