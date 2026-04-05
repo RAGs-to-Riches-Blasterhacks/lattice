@@ -18,7 +18,7 @@ class ApiException implements Exception {
 class ApiService {
   static const String _baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://127.0.0.1:8000/api',
+    defaultValue: 'http://10.0.2.2:8000/api',
   ); //URL 10.0.2.2 for Android simulation
 
   static const String _firebaseApiKey = String.fromEnvironment(
@@ -433,8 +433,7 @@ class ApiService {
   }
 
   Future<Streak> getMyStreak() async {
-    request() =>
-        http.get(Uri.parse('$_baseUrl/streaks/me'), headers: _headers);
+    request() => http.get(Uri.parse('$_baseUrl/streaks/me'), headers: _headers);
     final response = await request();
     final data = await _handleResponse(response, retry: request);
     return Streak.fromJson(data);
