@@ -47,6 +47,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   // Node detail overlay state
   PlanNode? _selectedNode;
   bool _planCardCollapsed = false;
+  bool _planNeedsRefresh = false;
 
   @override
   void initState() {
@@ -83,32 +84,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     }
   }
 
-  /// Reload plan data without closing the node-detail / chat overlay.
-  /// Updates _plan, _activeBranchId, and keeps _selectedNode in sync
-  /// with the refreshed node list so the overlay stays open.
-  Future<void> _refreshPlanQuietly() async {
-    if (widget.planId == null) return;
-    try {
-      final plan = await context.read<PlansProvider>().getPlan(widget.planId!);
-      if (!mounted) return;
-      setState(() {
-        _plan = plan;
-        _activeBranchId = plan.activeBranchId;
-        // Keep the overlay open — update _selectedNode to the matching node
-        // from the fresh plan data (it may now live on a new branch).
-        if (_selectedNode != null) {
-          final match = plan.nodes.cast<PlanNode?>().firstWhere(
-                (n) => n!.nodeId == _selectedNode!.nodeId,
-                orElse: () => null,
-              );
-          _selectedNode = match;
-        }
-      });
-    } catch (_) {
-      // Silently ignore — the user can still dismiss and retry.
-    }
-  }
-
   void _switchBranch(String branchId) {
     setState(() => _activeBranchId = branchId);
   }
@@ -121,10 +96,13 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   }
 
   void _dismissNodeOverlay() {
+    final needsRefresh = _planNeedsRefresh;
+    _planNeedsRefresh = false;
     setState(() {
       _selectedNode = null;
       _planCardCollapsed = false;
     });
+    if (needsRefresh) _loadPlan();
   }
 
   /// Recursively walks up the parent chain to build the full active path.
@@ -383,9 +361,12 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                       setState(() => _planCardCollapsed = true),
                   onPlanChatDismissed: () {
                     setState(() => _planCardCollapsed = false);
-                    _loadPlan();
+                    if (_planNeedsRefresh) {
+                      _planNeedsRefresh = false;
+                      _loadPlan();
+                    }
                   },
-                  onPlanUpdated: _refreshPlanQuietly,
+                  onPlanUpdated: () => _planNeedsRefresh = true,
                 ),
               ),
           ],
