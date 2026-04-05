@@ -48,12 +48,12 @@ const brandLogo = {
   alt: 'Lattice logo',
 }
 
-function StoreBadge({ badge }) {
+function StoreBadge({ badge, href }) {
   return (
     <a
       className="store-badge store-badge--image"
-      href="#download-buttons"
-      onClick={(event) => event.preventDefault()}
+      href={href || '#download-buttons'}
+      {...(!href && { onClick: (event) => event.preventDefault() })}
     >
       {badge.src ? (
         <img src={badge.src} alt={badge.alt} />
@@ -195,11 +195,21 @@ function App() {
             <span className="hero-copy__line">Download Lattice Today!</span>
           </h1>
 
-          <div className="store-buttons" id="download-buttons">
-            <StoreBadge badge={storeBadges.googlePlay} />
+          <div className="download-columns desktop-only" id="download-buttons">
+            <div className="download-column">
+              <img className="download-qr" src={assetPath('qr-download.svg')} alt="Scan to download Lattice APK" />
+              <StoreBadge badge={storeBadges.googlePlay} href={`${basePath}lattice.apk`} />
+            </div>
 
+            <div className="download-column">
+              <img className="download-qr" src={assetPath('qr-apple.svg')} alt="Scan to download Lattice on iOS" />
+              <StoreBadge badge={storeBadges.appStore} />
+            </div>
+          </div>
+
+          <div className="store-buttons mobile-only">
+            <StoreBadge badge={storeBadges.googlePlay} href={`${basePath}lattice.apk`} />
             <span className="store-divider">OR</span>
-
             <StoreBadge badge={storeBadges.appStore} />
           </div>
 
