@@ -226,7 +226,6 @@ class _PlanCardState extends State<PlanCard>
                           ),
                           const SizedBox(height: 8),
                         ],
-                        // ── TODO pill ────────────────────────────────────────
                         _buildTodoPill(),
                         // ── Extra expanded content (animated) ────────────────
                         ClipRect(
@@ -254,50 +253,82 @@ class _PlanCardState extends State<PlanCard>
   // ─── SHARED WIDGETS ───────────────────────────────────────────────────────
 
   Widget _buildTodoPill() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4A7C94),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    const Text('TODO:',
+                        style: TextStyle(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppColors.secondary)),
+                    Text('${widget.currentStep < widget.totalSteps ? widget.currentStep + 1 : widget.totalSteps}/${widget.totalSteps}',
+                        style: const TextStyle(
+                            color: AppColors.secondary, fontSize: 16, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  widget.currentTask,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.background),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: -8,
+          right: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF4A7C94),
+              color: const Color(0xFFE8631A),
               borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Column(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('TODO:',
-                    style: TextStyle(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
-                Text('${widget.currentStep < widget.totalSteps ? widget.currentStep + 1 : widget.totalSteps}/${widget.totalSteps}',
+                const Icon(Icons.local_fire_department,
+                    color: Colors.white, size: 18),
+                const SizedBox(width: 2),
+                Text('${widget.streak}',
                     style: const TextStyle(
-                        color: AppColors.secondary, fontSize: 12)),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700)),
               ],
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              widget.currentTask,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppColors.background),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(right: 12.0),
-            child: Text('🔥 ${widget.streak}',
-                style: TextStyle(fontSize: 20, color: AppColors.background),
-          ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
