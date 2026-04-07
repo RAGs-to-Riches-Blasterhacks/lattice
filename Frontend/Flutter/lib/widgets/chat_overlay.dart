@@ -442,19 +442,10 @@ class ChatOverlayState extends State<ChatOverlay>
               ),
               border: Border.all(color: AppColors.cardBorder),
             ),
-            child: const SizedBox(
+            child: SizedBox(
               width: 40,
               height: 20,
-              child: Center(
-                child: Text(
-                  '...',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 18,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
+              child: Center(child: _TypingDotsWidget()),
             ),
           ),
         ],
@@ -697,6 +688,73 @@ class ChatOverlayState extends State<ChatOverlay>
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TypingDotsWidget extends StatefulWidget {
+  const _TypingDotsWidget();
+
+  @override
+  State<_TypingDotsWidget> createState() => _TypingDotsWidgetState();
+}
+
+class _TypingDotsWidgetState extends State<_TypingDotsWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Animation<double>> _dotAnims;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+
+    _dotAnims = List.generate(3, (i) {
+      final start = i * 0.2;
+      return TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 0.0, end: -6.0).chain(CurveTween(curve: Curves.easeOut)), weight: 1),
+        TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)), weight: 1),
+      ]).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: Interval(start, start + 0.4),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Transform.translate(
+              offset: Offset(0, _dotAnims[i].value),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.textSecondary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }

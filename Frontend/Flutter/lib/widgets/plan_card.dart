@@ -274,13 +274,13 @@ class _PlanCardState extends State<PlanCard>
                     const Text('TODO:',
                         style: TextStyle(
                             color: AppColors.secondary,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                             decoration: TextDecoration.underline,
                             decorationColor: AppColors.secondary)),
                     Text('${widget.currentStep < widget.totalSteps ? widget.currentStep + 1 : widget.totalSteps}/${widget.totalSteps}',
                         style: const TextStyle(
-                            color: AppColors.secondary, fontSize: 16, fontWeight: FontWeight.w600)),
+                            color: AppColors.secondary, fontSize: 15, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
