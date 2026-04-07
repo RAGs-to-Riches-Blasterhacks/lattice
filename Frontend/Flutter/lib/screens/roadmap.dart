@@ -7,6 +7,7 @@ import 'package:lattice/widgets/chat_overlay.dart';
 import 'package:lattice/widgets/plan_card.dart';
 import 'package:lattice/widgets/quick_note_dialog.dart';
 import 'package:lattice/widgets/roadmap_node_card.dart';
+import 'package:lattice/services/api_service.dart';
 import 'package:lattice/widgets/app_drawer.dart';
 import 'package:lattice/widgets/topnav.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   late String _activeBranchId;
   final _inProgressKey = GlobalKey();
   String? _error;
+  int _currentStreak = 0;
 
   // Node detail overlay state
   PlanNode? _selectedNode;
@@ -52,6 +54,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
   void initState() {
     super.initState();
     _loadPlan();
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    try {
+      final streak = await context.read<ApiService>().getMyStreak();
+      if (mounted) setState(() => _currentStreak = streak.currentStreak);
+    } catch (_) {}
   }
 
   Future<void> _loadPlan() async {
@@ -307,6 +317,7 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                     title: _selectedNode!.title,
                     description: _selectedNode!.description,
                     cardColor: Color(_plan!.primaryColorValue),
+                    streak: _currentStreak,
                     currentTask: _selectedNode!.title,
                     currentStep: _selectedNode!.nodeNumber - 1,
                     totalSteps: _plan!.nodes.length,

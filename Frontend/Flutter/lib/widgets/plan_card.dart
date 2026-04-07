@@ -300,31 +300,46 @@ class _PlanCardState extends State<PlanCard>
         Positioned(
           top: -8,
           right: 6,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Tooltip(
+            showDuration: Duration(seconds: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8631A),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.local_fire_department,
-                    color: Colors.white, size: 18),
-                const SizedBox(width: 2),
-                Text('${widget.streak}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700)),
-              ],
+            textStyle: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500
+            ),
+            message: 'Your daily streak for completing any task',
+            triggerMode: TooltipTriggerMode.tap,
+            preferBelow: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8631A),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 2),
+                  Text('${widget.streak}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
             ),
           ),
         ),
