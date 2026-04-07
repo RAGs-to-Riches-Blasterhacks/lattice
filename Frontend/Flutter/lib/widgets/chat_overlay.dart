@@ -627,10 +627,13 @@ class ChatOverlayState extends State<ChatOverlay>
 
         // ── Input bar ───────────────────────────────────────────────────
         Positioned(
-          left: 16,
-          right: 16,
-          bottom: 24 + bottomPadding,
+          left: 0,
+          right: 0,
+          bottom: 0,
           child: Container(
+            color: _chatActive ? AppColors.background.withValues(alpha: 0.96) : Colors.transparent,
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomPadding),
+            child: Container(
             decoration: BoxDecoration(
               color: AppColors.cardBackground,
               borderRadius: BorderRadius.circular(32),
@@ -690,6 +693,7 @@ class ChatOverlayState extends State<ChatOverlay>
                 ),
               ],
             ),
+          ),
           ),
         ),
       ],
