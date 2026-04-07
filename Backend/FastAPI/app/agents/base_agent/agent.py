@@ -163,6 +163,7 @@ def _lighten_to_contrast(hex_color: str, against: str = "#000000", min_ratio: fl
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "")
 EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "")
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 
 
 def _is_url_reachable(url: str) -> bool:
@@ -319,127 +320,88 @@ Palette rules:
 # ---------------------------------------------------------------------------
 
 
-def find_youtube_videos(topic: str) -> dict:
-    """Find YouTube videos for a learning topic using YouTube Data API v3.
-
-    Args:
-        topic: The topic or task to search videos for.
-
-    Returns:
-        A dict with Resource-shaped results (type="youtube").
-    """
+def _tavily_search(query: str, include_domains: list[str] | None = None, max_results: int = 10) -> list[dict]:
+    """Run a Tavily search and return raw results. Returns [] on failure."""
     try:
-        resp = httpx.get(
-            "https://www.googleapis.com/youtube/v3/search",
-            params={
-                "part": "snippet",
-                "q": topic,
-                "type": "video",
-                "maxResults": 5,
-                "order": "relevance",
-                "key": GOOGLE_API_KEY,
+        resp = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "max_results": max_results,
+                "include_domains": include_domains or [],
             },
-            timeout=10,
+            timeout=15,
         )
         resp.raise_for_status()
-        items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            vid = item.get("id", {}).get("videoId")
-            if not vid:
-                continue
-            url = f"https://youtube.com/watch?v={vid}"
-            if not _is_url_reachable(url):
-                continue
-            resources.append({
+        return resp.json().get("results", [])
+    except Exception:
+        return []
+
+
+def _is_youtube(url: str) -> bool:
+    return "youtube.com" in url or "youtu.be" in url
+
+
+def _is_book_site(url: str) -> bool:
+    return any(d in url for d in ("goodreads.com", "amazon.com", "google.com/books"))
+
+
+def find_resources(topic: str, include_youtube: bool = True, include_articles: bool = True, include_books: bool = True) -> dict:
+    """Find YouTube videos, articles, and books for a learning topic in a single search.
+
+    Uses one API call and classifies results by URL. This is the preferred tool
+    for gathering learning resources — call it once instead of separate searches.
+
+    Args:
+        topic: The topic or task to search resources for.
+        include_youtube: Whether to include YouTube video results.
+        include_articles: Whether to include article/tutorial results.
+        include_books: Whether to include book results.
+
+    Returns:
+        A dict with categorized Resource-shaped results.
+    """
+    results = _tavily_search(f"{topic} tutorial guide resources books", max_results=10)
+
+    youtube = []
+    articles = []
+    books = []
+
+    for item in results:
+        url = item.get("url", "")
+        title = item.get("title", "")
+
+        if include_youtube and _is_youtube(url):
+            youtube.append({
                 "type": "youtube",
-                "title": item["snippet"]["title"],
+                "title": title,
                 "url": url,
                 "duration_minutes": None,
-                "is_optional": i >= 3,
+                "is_optional": len(youtube) >= 3,
             })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
-
-
-def find_articles(topic: str) -> dict:
-    """Find articles and documentation for a learning topic using Google Custom Search.
-
-    Args:
-        topic: The topic or task to search articles for.
-
-    Returns:
-        A dict with Resource-shaped results (type="article").
-    """
-    try:
-        resp = httpx.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": GOOGLE_API_KEY,
-                "cx": GOOGLE_CSE_ID,
-                "q": f"{topic} tutorial guide",
-                "num": 5,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            url = item.get("link", "")
-            if not _is_url_reachable(url):
-                continue
-            resources.append({
-                "type": "article",
-                "title": item["title"],
-                "url": url,
-                "duration_minutes": None,
-                "is_optional": i >= 3,
-            })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
-
-
-def find_books(topic: str) -> dict:
-    """Find books for a learning topic using Google Books API.
-
-    Args:
-        topic: The topic or task to search books for.
-
-    Returns:
-        A dict with Resource-shaped results (type="book").
-    """
-    try:
-        resp = httpx.get(
-            "https://www.googleapis.com/books/v1/volumes",
-            params={
-                "q": topic,
-                "maxResults": 5,
-                "key": GOOGLE_API_KEY,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            if "volumeInfo" not in item:
-                continue
-            url = item["volumeInfo"].get("infoLink", "")
-            if url and not _is_url_reachable(url):
-                continue
-            resources.append({
+        elif include_books and _is_book_site(url):
+            books.append({
                 "type": "book",
-                "title": item["volumeInfo"].get("title", "Unknown Title"),
+                "title": title,
                 "url": url,
                 "duration_minutes": None,
-                "is_optional": i >= 2,
+                "is_optional": len(books) >= 2,
             })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
+        elif include_articles and not _is_youtube(url):
+            articles.append({
+                "type": "article",
+                "title": title,
+                "url": url,
+                "duration_minutes": None,
+                "is_optional": len(articles) >= 3,
+            })
+
+    return {
+        "youtube": youtube,
+        "articles": articles,
+        "books": books,
+    }
 
 
 def _extract_eventbrite_id(url: str) -> str | None:
@@ -493,24 +455,16 @@ def find_local_events(topic: str, city: str, state: str, country: str) -> dict:
     location = " ".join(filter(None, [city, state, country]))
     resources = []
 
-    try:
-        resp = httpx.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": GOOGLE_API_KEY,
-                "cx": GOOGLE_CSE_ID,
-                "q": f"site:eventbrite.com {topic} {location}",
-                "num": 5,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        search_items = resp.json().get("items", [])
-    except Exception as e:
-        return {"resources": [], "error": f"Google search failed: {e}"}
+    search_items = _tavily_search(
+        f"eventbrite {topic} {location}",
+        include_domains=["eventbrite.com"],
+        max_results=5,
+    )
+    if not search_items:
+        return {"resources": []}
 
     for item in search_items:
-        url = item.get("link", "")
+        url = item.get("url", "")
         event_id = _extract_eventbrite_id(url)
 
         if event_id and EVENTBRITE_TOKEN:
@@ -532,8 +486,6 @@ def find_local_events(topic: str, city: str, state: str, country: str) -> dict:
                 })
                 continue
 
-        if not _is_url_reachable(url):
-            continue
         resources.append({
             "type": "event",
             "title": item.get("title", ""),
@@ -555,11 +507,10 @@ researcher_agent = LlmAgent(
     description="Finds learning resources for a specific task.",
     output_key="research_result",
     output_schema=ResearcherOutput,
-    instruction="""You are a resource curator. Given a task title/description and toggles, call the matching tools:
-- include_youtube=true → find_youtube_videos
-- include_articles=true → find_articles
-- include_books=true → find_books
-- include_local_events=true → find_local_events
+    instruction="""You are a resource curator. Given a task title/description and toggles, find resources:
+
+1. Call find_resources with the topic. Pass the include_youtube, include_articles, and include_books flags based on what was requested. This single call returns all three resource types.
+2. If include_local_events=true → also call find_local_events separately.
 
 ## User context
 Location: {user_city?}, {user_state?}, {user_country?} | Location opted in: {user_location_opted_in?}
@@ -568,7 +519,7 @@ When include_local_events=true and the user has opted in to location (user_locat
 
 If include_extra_homework=true, add 2-3 hands-on exercises (type="exercise", url="").
 Write a 3-5 sentence friendly guide for approaching this task.""",
-    tools=[find_youtube_videos, find_articles, find_books, find_local_events],
+    tools=[find_resources, find_local_events],
 )
 
 

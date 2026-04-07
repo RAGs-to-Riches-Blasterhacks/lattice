@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""  # Google API key (YouTube Data v3, Books, Custom Search)
     GOOGLE_CSE_ID: str = ""  # Google Custom Search Engine ID (for articles)
     EVENTBRITE_TOKEN: str = ""  # Eventbrite private OAuth token (for event details)
+    TAVILY_API_KEY: str = ""  # Tavily API key (for resource search: videos, articles, books)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
