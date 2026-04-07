@@ -188,6 +188,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                       _selected.contains(plan.id);
                                   return _ProjectTile(
                                     title: plan.skillName,
+                                    index: index,
                                     deleteMode: _deleteMode,
                                     selected: isSelected,
                                     onTap: _deleteMode
@@ -235,59 +236,119 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 }
 
-class _ProjectTile extends StatelessWidget {
+class _ProjectTile extends StatefulWidget {
   final String title;
   final VoidCallback onTap;
   final bool deleteMode;
   final bool selected;
+  final int index;
 
   const _ProjectTile({
     required this.title,
     required this.onTap,
+    required this.index,
     this.deleteMode = false,
     this.selected = false,
   });
 
   @override
+  State<_ProjectTile> createState() => _ProjectTileState();
+}
+
+class _ProjectTileState extends State<_ProjectTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _shakeAnim = Tween<double>(begin: -0.5, end: 0.5).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
+    );
+    if (widget.selected) _startShake();
+  }
+
+  @override
+  void didUpdateWidget(_ProjectTile old) {
+    super.didUpdateWidget(old);
+    if (widget.selected && !old.selected) {
+      _startShake();
+    } else if (!widget.selected && old.selected) {
+      _shakeController.stop();
+      _shakeController.reset();
+    }
+  }
+
+  void _startShake() {
+    // Stagger tiles so they don't all move in perfect lockstep.
+    Future.delayed(Duration(milliseconds: widget.index * 30), () {
+      if (mounted && widget.selected) {
+        _shakeController.repeat(reverse: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withOpacity(0.15) : AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.accent : AppColors.cardBorder,
+    return AnimatedBuilder(
+      animation: _shakeAnim,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(widget.selected ? _shakeAnim.value * 2.5 : 0, 0),
+        child: child,
+      ),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? AppColors.accent.withValues(alpha: 0.15)
+                : AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: widget.selected ? AppColors.accent : AppColors.cardBorder,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-            if (deleteMode)
-              Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
-                color: selected ? AppColors.accent : AppColors.textSecondary,
-                size: 22,
-              )
-            else
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-          ],
+              if (widget.deleteMode)
+                Icon(
+                  widget.selected ? Icons.check_circle : Icons.circle_outlined,
+                  color: widget.selected
+                      ? AppColors.accent
+                      : AppColors.textSecondary,
+                  size: 22,
+                )
+              else
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+            ],
+          ),
         ),
       ),
     );

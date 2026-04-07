@@ -131,7 +131,16 @@ class _PlanCardState extends State<PlanCard>
             ? BoxConstraints(maxHeight: screenHeight * 0.9)
             : const BoxConstraints(),
         decoration: BoxDecoration(
-          color: widget.cardColor,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(Colors.white, widget.cardColor, 0.72)!,
+              widget.cardColor,
+              Color.lerp(AppColors.background, widget.cardColor, 0.82)!,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
           borderRadius: BorderRadius.circular(20.0),
           boxShadow: [
             BoxShadow(

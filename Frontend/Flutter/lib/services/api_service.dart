@@ -18,8 +18,8 @@ class ApiException implements Exception {
 class ApiService {
   static const String _baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://127.0.0.1:8000/api',
-  ); //URL 10.0.2.2 for Android simulation
+    defaultValue: 'https://lattice-production-f7cb.up.railway.app/api',
+  ); // Local testing: --dart-define=API_URL=http://127.0.0.1:8000/api
 
   static const String _firebaseApiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',

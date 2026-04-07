@@ -418,6 +418,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       appBar: const TopNav(),
       drawer: const AppDrawer(),
+      resizeToAvoidBottomInset: false,
       body: Stack(
         key: _bodyStackKey,
         fit: StackFit.expand,
