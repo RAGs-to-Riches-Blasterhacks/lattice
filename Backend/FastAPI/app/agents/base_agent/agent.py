@@ -1,4 +1,6 @@
 import os
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import litellm
 litellm.suppress_debug_info = True
@@ -104,6 +106,27 @@ class ResearcherOutput(BaseModel):
     resources: list[ResourceOutput] = Field(default_factory=list)
     guide: str = ""
 
+
+# ---------------------------------------------------------------------------
+# Evaluator Output Schema
+# ---------------------------------------------------------------------------
+
+
+class EvaluationCriterionOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    score: float = Field(ge=0.0, le=1.0)
+    comment: str = ""
+
+
+class EvaluationOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    overall_score: float = Field(ge=0.0, le=1.0)
+    criteria: list[EvaluationCriterionOutput] = Field(default_factory=list)
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+    fix_instructions: list[str] = Field(default_factory=list)
+
 # ---------------------------------------------------------------------------
 # Color contrast utilities (WCAG 2.1)
 # ---------------------------------------------------------------------------
@@ -163,6 +186,7 @@ def _lighten_to_contrast(hex_color: str, against: str = "#000000", min_ratio: fl
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "")
 EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "")
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 
 
 def _is_url_reachable(url: str) -> bool:
@@ -229,87 +253,95 @@ planner_agent = LlmAgent(
     description="Creates a structured, personalized learning roadmap with a matching color palette.",
     output_key="plan_result",
     output_schema=PlannerOutput,
-    instruction="""You are a learning path designer. Given a skill, end goal, days_per_week, and minutes_per_day, design a 5-30 node roadmap AND a color palette that matches the skill's vibe.
+    instruction="""
+You are a learning path designer.
 
-Call estimate_difficulty and get_prerequisites first, then build the plan.
+Input:
+- skill
+- end_goal
+- days_per_week
+- minutes_per_day
 
-## Scope & safety
+First call:
+- estimate_difficulty
+- get_prerequisites
 
-You ONLY design learning plans for legitimate skills. You MUST refuse and return an error for:
-- NSFW content, illegal activities (weapons, explosives, drugs, hacking for malicious purposes), or anything harmful
-- Skills that are just vehicles for prohibited content
-If the request is out of scope, respond with: {"error": "This skill is outside what Lattice can help with."}
+Use:
+- estimate_difficulty → decide roadmap length and pacing
+- get_prerequisites → include or skip foundational steps
 
-## Philosophy — challenge, don't coddle
+---
 
-The user may not know much yet but don't create a baby plan for them. Users don't want to be treated like they're helpless. Instead, find the best advice from how real practitioners actually learned the skill and build a path that respects the user's intelligence.
+Safety:
+Only allow legitimate skills.
+If unsafe, return:
+{"error": "This skill is outside what Lattice can help with."}
 
-- Get them doing real work early. If someone wants to learn guitar, they should be playing something by step 2, not reading music theory for a week.
-- Push users to apply what they learn. Prefer hands-on projects and practice over passive consumption.
-- Don't pad plans with fluff like "watch an overview" or "read the Wikipedia page" — every step should move them forward.
-- When in doubt, make it slightly harder than you think they need. People rise to expectations.
-- Give advice grounded in how people actually learn the skill well, not generic study tips.
-- If you don't have enough info, make reasonable assumptions based on the skill and design a plan for that.
+---
 
-Rules:
-- The `skill` field is the plan title shown in the UI. Keep it to 2–5 words — short, punchy, and noun-phrase style. Examples: "Stop Doom Scrolling", "Learn Rust", "Watercolor Basics", "Build a SaaS". Never use full sentences or describe the entire goal in the title.
-- Design 5 to 30 nodes depending on the complexity of the skill — don't artificially compress a hard topic into 5 steps or stretch a simple one to 30
-- Start from basics if the user doesn't know their current level, but include advanced nodes to stretch them
-- Each node fits within minutes_per_day
-- Mix task types but lean toward practice, projects, and exploration over passive reading
-- 1 to 3 options per node, or no options at all — options are completely optional. When included, they should represent meaningfully different approaches (e.g. "build a CLI tool" vs "build a web app"), not just difficulty levels
-- skill_level: beginner, intermediate, or advanced
-- Write descriptions like a knowledgeable friend who's done this before, not a textbook
-- Write success_levels as things a real person would say
-- Each step should leave the user with something tangible they built, solved, or can demonstrate
+Approach:
+- Get the user doing real work immediately
+- Prioritize practice/projects over passive learning
+- Avoid fluff
+- Slightly challenge the user
+- Design like a real practitioner would
 
-Resources per node:
-- Add 2-5 resources per node with real, specific recommendations
-- type must be one of: youtube, article, book, exercise, event
-- For youtube/article/book: include a specific, real title. Include the URL if you know it, otherwise leave url as empty string
-- For exercise: describe a concrete hands-on practice task in the title (url can be empty string)
-- Mix resource types across nodes — don't just list articles for every node
-- duration_minutes: estimate how long the resource takes to consume (0 if unknown)
-- is_optional: mark supplementary resources as true, core ones as false
+At least 70% of nodes must involve active creation, practice, or problem-solving.
 
-Palette rules:
-- Pick 1 color: background
-- The PRIMARY color is the card background color the user sees every day. It MUST be strongly tied to the skill's emotional or visual identity. Derive the hue from the skill itself — think about what color this subject evokes in the real world, not what a generic app would use.
-- CRITICAL — Force yourself to consider the full hue wheel before settling. A skilled designer would use:
-  - Reds / burgundy for passion-driven or high-energy skills
-  - Oranges for craft or warmth (distinct from yellow — more red in it)
-  - Yellows / gold ONLY for skills with a literal solar, harvest, or metallic association
-  - Yellow-greens / olive for nature, sustainability, outdoor skills
-  - Greens / sage ONLY for botany, ecology, gardening, or similar
-  - Teals / cyan for tech-adjacent or scientific topics
-  - Blues / slate ONLY for coding, engineering, ocean, or sky-related skills
-  - Indigos / periwinkle for logic, structure, productivity
-  - Violets / purple for creativity, music, spirituality
-  - Magentas / rose for artistic, expressive, or performance skills
-  - Pinks / blush for soft, personal-growth or wellness topics
-  - Peach / coral ONLY when the skill is explicitly food, baking, or warmly domestic
-- Concrete hue anchors by domain (starting points only — use judgment):
-  - Coding / software → slate blue or cool indigo
-  - Music / instruments → dusty violet or muted plum
-  - Art / painting / drawing → warm terracotta or muted magenta
-  - Writing / poetry → dusty mauve or cool rose-grey
-  - Photography → cool silver-grey or muted teal
-  - Cooking / baking → soft terracotta or warm orange-red (peach acceptable here)
-  - Fitness / sport → energetic coral-red or bold sage
-  - Language learning → warm burgundy or soft teal
-  - Mindfulness / meditation → soft lilac or cool lavender
-  - Finance / investing → deep teal or muted slate
-  - Nature / gardening → sage or earthy olive green
-  - Science / math → cool periwinkle or pale steel blue
-  - History / humanities → dusty burgundy or warm brick red
-  - Business / entrepreneurship → deep navy-adjacent or cool slate grey
-  - Film / video → deep rose or cool charcoal-blue
-- Surface colors (primary, secondary, accent, background) should be light enough for black text to read comfortably, but VARIETY trumps uniformity. A coding plan and a cooking plan should look nothing alike. Aim for colors that are visually distinct and memorable — not everything should look like a pastel greeting card.
-- Avoid neon or fully saturated colors (S = 100%), but anywhere from a rich mid-tone to a soft pastel is fair game as long as it works with dark text. Don't clamp yourself to a narrow lightness band — some plans can be deeper and moodier, others can be airy and light.
-- secondary and accent must be clearly different from primary in hue — not just slightly darker or lighter versions of the same color. Use the full palette to create contrast and interest.
-- Black text will be placed on these surfaces. Every surface color must have a contrast ratio >= 4.5:1 against black (#000000). The system will auto-lighten any color that fails this check, so err toward expressiveness and let the safety net handle edge cases.
-- The "text" role should be a very dark neutral (near-black), not a surface color.
-- Give each color a short name and rationale""",
+Each node must produce something observable (file, project, recording, solved problem, etc).
+Avoid vague outcomes like “understand” or “learn”.
+
+---
+
+Roadmap rules:
+- skill: 2-5 word title
+- 5-30 nodes based on difficulty
+- Each node must fit within minutes_per_day (single session only)
+- Start simple → include stretch steps
+
+Each node:
+- title
+- description (casual, experienced tone)
+- task_type (practice | project | exploration)
+- skill_level (beginner | intermediate | advanced)
+- success_levels (real-world phrasing)
+- options (0-3, meaningfully different, optional)
+- resources (2-5 items)
+
+Resources:
+- type: youtube | article | book | exercise | event
+- title: specific and real
+- url: ""
+- duration_minutes: int or 0
+- is_optional: bool
+- Mix types across nodes
+
+---
+
+Color palette:
+- primary (must reflect skill's real-world vibe)
+- secondary (different hue)
+- accent (different hue)
+- background
+- text (near-black)
+
+Avoid generic palettes. Ensure readability with black text.
+
+---
+
+Output (JSON):
+{
+  "skill": "",
+  "nodes": [...],
+  "palette": {
+    "primary": {"name": "", "hex": "", "rationale": ""},
+    "secondary": {"name": "", "hex": "", "rationale": ""},
+    "accent": {"name": "", "hex": "", "rationale": ""},
+    "background": {"name": "", "hex": "", "rationale": ""},
+    "text": {"name": "", "hex": "", "rationale": ""}
+  }
+}
+""",
     tools=[estimate_difficulty, get_prerequisites],
 )
 
@@ -319,127 +351,372 @@ Palette rules:
 # ---------------------------------------------------------------------------
 
 
-def find_youtube_videos(topic: str) -> dict:
-    """Find YouTube videos for a learning topic using YouTube Data API v3.
+def _tavily_search(query: str, include_domains: list[str] | None = None, max_results: int = 10) -> list[dict]:
+    """Run a Tavily search and return raw results. Returns [] on failure."""
+    try:
+        resp = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "max_results": max_results,
+                "include_domains": include_domains or [],
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json().get("results", [])
+    except Exception:
+        return []
 
-    Args:
-        topic: The topic or task to search videos for.
 
-    Returns:
-        A dict with Resource-shaped results (type="youtube").
-    """
+def _is_youtube(url: str) -> bool:
+    return "youtube.com" in url or "youtu.be" in url
+
+
+def _parse_iso_duration_minutes(duration: str) -> int:
+    """Parse ISO 8601 duration (e.g. PT1H23M45S) to total minutes."""
+    match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration)
+    if not match:
+        return 0
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    return hours * 60 + minutes
+
+
+def _oembed_accessible(video_id: str) -> bool:
+    """Return True if the YouTube video is accessible via oEmbed (definitive liveness check)."""
     try:
         resp = httpx.get(
+            "https://www.youtube.com/oembed",
+            params={"url": f"https://www.youtube.com/watch?v={video_id}", "format": "json"},
+            timeout=5,
+        )
+        # 200 = accessible, 401 = embedding disabled but video exists and is watchable.
+        # 403 = age-restricted/region-locked, 404 = deleted/nonexistent.
+        return resp.status_code in (200, 401)
+    except Exception:
+        return False
+
+
+def _youtube_search(topic: str, max_duration_minutes: int = 90) -> list[dict]:
+    """Search YouTube for videos on a topic, filtering by availability and duration.
+
+    Uses YouTube Data API v3: search → videos.list for duration/status → parallel
+    oEmbed verification to guarantee each returned URL is actually watchable.
+    Returns [] on failure.
+    """
+    if not GOOGLE_API_KEY:
+        return []
+    try:
+        search_resp = httpx.get(
             "https://www.googleapis.com/youtube/v3/search",
             params={
                 "part": "snippet",
-                "q": topic,
+                "q": f"{topic} tutorial",
                 "type": "video",
-                "maxResults": 5,
-                "order": "relevance",
+                "maxResults": 15,
                 "key": GOOGLE_API_KEY,
             },
             timeout=10,
         )
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            vid = item.get("id", {}).get("videoId")
-            if not vid:
-                continue
-            url = f"https://youtube.com/watch?v={vid}"
-            if not _is_url_reachable(url):
-                continue
-            resources.append({
-                "type": "youtube",
-                "title": item["snippet"]["title"],
-                "url": url,
-                "duration_minutes": None,
-                "is_optional": i >= 3,
-            })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
+        search_resp.raise_for_status()
+        search_items = search_resp.json().get("items", [])
+        if not search_items:
+            return []
 
+        id_to_title = {
+            item["id"]["videoId"]: item["snippet"]["title"]
+            for item in search_items
+            if item.get("id", {}).get("videoId")
+        }
+        if not id_to_title:
+            return []
 
-def find_articles(topic: str) -> dict:
-    """Find articles and documentation for a learning topic using Google Custom Search.
-
-    Args:
-        topic: The topic or task to search articles for.
-
-    Returns:
-        A dict with Resource-shaped results (type="article").
-    """
-    try:
-        resp = httpx.get(
-            "https://www.googleapis.com/customsearch/v1",
+        details_resp = httpx.get(
+            "https://www.googleapis.com/youtube/v3/videos",
             params={
+                "part": "contentDetails,status",
+                "id": ",".join(id_to_title.keys()),
                 "key": GOOGLE_API_KEY,
-                "cx": GOOGLE_CSE_ID,
-                "q": f"{topic} tutorial guide",
-                "num": 5,
             },
             timeout=10,
         )
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            url = item.get("link", "")
-            if not _is_url_reachable(url):
-                continue
-            resources.append({
-                "type": "article",
-                "title": item["title"],
-                "url": url,
-                "duration_minutes": None,
-                "is_optional": i >= 3,
-            })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
+        details_resp.raise_for_status()
+        detail_items = details_resp.json().get("items", [])
+    except Exception:
+        return []
+
+    # First pass: filter by API-reported status, duration, and age restriction.
+    candidates = []
+    for item in detail_items:
+        video_id = item.get("id", "")
+        status = item.get("status", {})
+        if status.get("privacyStatus") != "public":
+            continue
+        if status.get("uploadStatus") != "processed":
+            continue
+        content_details = item.get("contentDetails", {})
+        if content_details.get("contentRating", {}).get("ytRating") == "ytAgeRestricted":
+            continue
+
+        raw_duration = content_details.get("duration", "")
+        duration_min = _parse_iso_duration_minutes(raw_duration)
+        if duration_min > max_duration_minutes:
+            continue
+
+        candidates.append({
+            "video_id": video_id,
+            "title": id_to_title.get(video_id, ""),
+            "duration_min": duration_min,
+        })
+
+    # Second pass: parallel oEmbed check — the definitive "is this actually watchable" test.
+    accessible: set[str] = set()
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_oembed_accessible, c["video_id"]): c["video_id"] for c in candidates}
+        for future in as_completed(futures):
+            if future.result():
+                accessible.add(futures[future])
+
+    results = []
+    for c in candidates:
+        if c["video_id"] not in accessible:
+            continue
+        results.append({
+            "type": "youtube",
+            "title": c["title"],
+            "url": f"https://www.youtube.com/watch?v={c['video_id']}",
+            "duration_minutes": c["duration_min"] or None,
+            "is_optional": len(results) >= 3,
+        })
+
+    return results
 
 
-def find_books(topic: str) -> dict:
-    """Find books for a learning topic using Google Books API.
+def _google_books_search(topic: str) -> list[dict]:
+    """Search Google Books for books that have actual preview content.
 
-    Args:
-        topic: The topic or task to search books for.
-
-    Returns:
-        A dict with Resource-shaped results (type="book").
+    Only returns books where viewability is PARTIAL or ALL_PAGES — these have
+    real content accessible at the link. Books with NO_PAGES viewability are
+    skipped (they show a "preview not available" wall).
     """
+    if not GOOGLE_API_KEY:
+        return []
     try:
         resp = httpx.get(
             "https://www.googleapis.com/books/v1/volumes",
             params={
                 "q": topic,
-                "maxResults": 5,
+                "maxResults": 10,
                 "key": GOOGLE_API_KEY,
             },
             timeout=10,
         )
         resp.raise_for_status()
         items = resp.json().get("items", [])
-        resources = []
-        for i, item in enumerate(items):
-            if "volumeInfo" not in item:
+    except Exception:
+        return []
+
+    results = []
+    for item in items:
+        info = item.get("volumeInfo", {})
+        access = item.get("accessInfo", {})
+        viewability = access.get("viewability", "UNKNOWN")
+
+        # Only include books with real preview content.
+        if viewability not in ("PARTIAL", "ALL_PAGES"):
+            continue
+
+        # previewLink goes directly to the readable preview; prefer it over canonicalVolumeLink.
+        url = info.get("previewLink") or info.get("canonicalVolumeLink", "")
+        if not url:
+            continue
+
+        results.append({
+            "type": "book",
+            "title": info.get("title", ""),
+            "url": url,
+            "duration_minutes": None,
+            "is_optional": len(results) >= 2,
+        })
+    return results
+
+
+def _openlibrary_search(topic: str) -> list[dict]:
+    """Search Open Library for books. Work page URLs always resolve to a valid book info page."""
+    try:
+        resp = httpx.get(
+            "https://openlibrary.org/search.json",
+            params={"q": topic, "limit": 8},
+            timeout=10,
+            headers={"User-Agent": "Lattice/1.0 (learning app; contact via github)"},
+        )
+        resp.raise_for_status()
+        docs = resp.json().get("docs", [])
+    except Exception:
+        return []
+
+    results = []
+    for doc in docs:
+        key = doc.get("key", "")   # e.g. "/works/OL27448W"
+        title = doc.get("title", "")
+        if not key or not title:
+            continue
+        # Work pages (openlibrary.org/works/OL...W) are stable and always resolve.
+        # They show cover, description, all editions, and borrow/buy links.
+        results.append({
+            "type": "book",
+            "title": title,
+            "url": f"https://openlibrary.org{key}",
+            "duration_minutes": None,
+            "is_optional": len(results) >= 2,
+        })
+    return results
+
+
+# Patterns only reliable enough to check in the page <title>, not the body.
+# Body text contains too many legitimate uses of "not found", "unavailable", etc.
+_SOFT_404_TITLE_PATTERNS = re.compile(
+    r"(page not found|404|page (doesn.t|does not) exist|"
+    r"we can.t find (that|this|the) page|access denied|forbidden)",
+    re.IGNORECASE,
+)
+
+
+def _strip_scripts_and_tags(html: str) -> str:
+    """Remove <script>/<style> blocks and all remaining tags, leaving plain text."""
+    # Remove script and style blocks including their content.
+    text = re.sub(r"<(script|style)[^>]*>.*?</(script|style)>", " ", html, flags=re.IGNORECASE | re.DOTALL)
+    # Strip remaining tags.
+    return re.sub(r"<[^>]+>", " ", text)
+
+
+def _article_is_valid(url: str, topic: str) -> bool:
+    """Return True if the URL is a live, English, on-topic page.
+
+    Checks (in order):
+    1. HTTP status — hard 4xx/5xx = reject
+    2. Soft 404 — title contains a "not found" phrase = reject
+    3. Language — html lang attribute is explicitly non-English = reject;
+                  fallback: >60% non-ASCII alphabetic chars in visible text = reject
+    4. Relevance — none of the topic's keywords appear anywhere on the page = reject
+    """
+    try:
+        resp = httpx.get(url, timeout=10, follow_redirects=True)
+        if resp.status_code >= 400:
+            return False
+        html = resp.text
+    except Exception:
+        return True  # Network error — keep to avoid over-filtering.
+
+    # --- Soft 404: title only (body has too many false positives) ---
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    title = title_match.group(1) if title_match else ""
+    if _SOFT_404_TITLE_PATTERNS.search(title):
+        return False
+
+    # Strip scripts/styles before language and relevance checks so JS/CSS
+    # unicode doesn't skew character ratios or pollute keyword matching.
+    plain = _strip_scripts_and_tags(html)
+
+    # --- Language check ---
+    lang_match = re.search(r'<html[^>]+lang=["\']([^"\']+)["\']', html, re.IGNORECASE)
+    if lang_match:
+        lang = lang_match.group(1).lower()
+        if lang and not lang.startswith("en"):
+            return False
+    else:
+        # Fallback: only reject if majority (>60%) of visible letters are non-ASCII.
+        # High threshold to avoid rejecting English pages with some foreign words/code.
+        letters = [c for c in plain if c.isalpha()]
+        if letters and sum(1 for c in letters if ord(c) > 127) / len(letters) > 0.60:
+            return False
+
+    # --- Relevance check ---
+    # Require at least 2 meaningful keywords from the topic to appear in the page.
+    # A single keyword match (e.g. "french" on any French-related page) is too loose.
+    keywords = [w.lower() for w in re.split(r"\W+", topic) if len(w) >= 4]
+    if keywords:
+        page_lower = plain.lower()
+        matches = sum(1 for kw in keywords if kw in page_lower)
+        required = 1 if len(keywords) == 1 else 2
+        if matches < required:
+            return False
+
+    return True
+
+
+def _validate_article_links(articles: list[dict], topic: str) -> list[dict]:
+    """Filter articles in parallel: dead links, soft 404s, non-English, off-topic."""
+    if not articles:
+        return []
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {
+            pool.submit(_article_is_valid, a["url"], topic): a
+            for a in articles if a.get("url")
+        }
+        return [futures[f] for f in as_completed(futures) if f.result()]
+
+
+def find_resources(
+    topic: str,
+    article_query: str | None = None,
+    include_youtube: bool = True,
+    include_articles: bool = True,
+    include_books: bool = True,
+    max_video_duration_minutes: int = 90,
+) -> dict:
+    """Find YouTube videos, articles, and books for a learning topic.
+
+    YouTube: Data API v3 with oEmbed verification (no dead/unavailable videos).
+    Books: Google Books (previews only) with Open Library fallback (always-valid work URLs).
+    Articles: Tavily + parallel GET validation with soft-404 detection.
+
+    Args:
+        topic: The topic or task to search resources for (used for YouTube/books).
+        article_query: Optional richer query for Tavily article search. Falls back to topic.
+        include_youtube: Whether to include YouTube video results.
+        include_articles: Whether to include article/tutorial results.
+        include_books: Whether to include book results.
+        max_video_duration_minutes: Skip YouTube videos longer than this. Default 90.
+
+    Returns:
+        A dict with categorized Resource-shaped results.
+    """
+    youtube = _youtube_search(topic, max_video_duration_minutes) if include_youtube else []
+
+    books = []
+    if include_books:
+        # Primary: Google Books (only returns books with actual preview content).
+        books = _google_books_search(topic)
+        # Fallback: Open Library work URLs always resolve to a useful book info page.
+        if not books:
+            books = _openlibrary_search(topic)
+
+    articles = []
+    if include_articles:
+        search_query = article_query if article_query else f"{topic} guide tips tutorial"
+        results = _tavily_search(search_query, max_results=15)
+        raw_articles = []
+        for item in results:
+            url = item.get("url", "")
+            if _is_youtube(url):
                 continue
-            url = item["volumeInfo"].get("infoLink", "")
-            if url and not _is_url_reachable(url):
-                continue
-            resources.append({
-                "type": "book",
-                "title": item["volumeInfo"].get("title", "Unknown Title"),
+            raw_articles.append({
+                "type": "article",
+                "title": item.get("title", ""),
                 "url": url,
                 "duration_minutes": None,
-                "is_optional": i >= 2,
+                "is_optional": len(raw_articles) >= 3,
             })
-        return {"resources": resources}
-    except Exception as e:
-        return {"resources": [], "error": str(e)}
+        articles = _validate_article_links(raw_articles, topic)
+
+    return {
+        "youtube": youtube,
+        "articles": articles,
+        "books": books,
+    }
 
 
 def _extract_eventbrite_id(url: str) -> str | None:
@@ -493,24 +770,16 @@ def find_local_events(topic: str, city: str, state: str, country: str) -> dict:
     location = " ".join(filter(None, [city, state, country]))
     resources = []
 
-    try:
-        resp = httpx.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": GOOGLE_API_KEY,
-                "cx": GOOGLE_CSE_ID,
-                "q": f"site:eventbrite.com {topic} {location}",
-                "num": 5,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        search_items = resp.json().get("items", [])
-    except Exception as e:
-        return {"resources": [], "error": f"Google search failed: {e}"}
+    search_items = _tavily_search(
+        f"eventbrite {topic} {location}",
+        include_domains=["eventbrite.com"],
+        max_results=5,
+    )
+    if not search_items:
+        return {"resources": []}
 
     for item in search_items:
-        url = item.get("link", "")
+        url = item.get("url", "")
         event_id = _extract_eventbrite_id(url)
 
         if event_id and EVENTBRITE_TOKEN:
@@ -532,8 +801,6 @@ def find_local_events(topic: str, city: str, state: str, country: str) -> dict:
                 })
                 continue
 
-        if not _is_url_reachable(url):
-            continue
         resources.append({
             "type": "event",
             "title": item.get("title", ""),
@@ -555,11 +822,10 @@ researcher_agent = LlmAgent(
     description="Finds learning resources for a specific task.",
     output_key="research_result",
     output_schema=ResearcherOutput,
-    instruction="""You are a resource curator. Given a task title/description and toggles, call the matching tools:
-- include_youtube=true → find_youtube_videos
-- include_articles=true → find_articles
-- include_books=true → find_books
-- include_local_events=true → find_local_events
+    instruction="""You are a resource curator. Given a task title/description and toggles, find resources:
+
+1. Call find_resources with the topic. Pass the include_youtube, include_articles, and include_books flags based on what was requested. This single call returns all three resource types.
+2. If include_local_events=true → also call find_local_events separately.
 
 ## User context
 Location: {user_city?}, {user_state?}, {user_country?} | Location opted in: {user_location_opted_in?}
@@ -568,8 +834,520 @@ When include_local_events=true and the user has opted in to location (user_locat
 
 If include_extra_homework=true, add 2-3 hands-on exercises (type="exercise", url="").
 Write a 3-5 sentence friendly guide for approaching this task.""",
-    tools=[find_youtube_videos, find_articles, find_books, find_local_events],
+    tools=[find_resources, find_local_events],
 )
+
+
+# ---------------------------------------------------------------------------
+# Plan Evaluator
+# ---------------------------------------------------------------------------
+
+EVAL_MAX_RETRIES = 3
+EVAL_THRESHOLD = 0.85
+EVAL_MODEL = "openai/gpt-5.4"  # Different model than planner (mini) to avoid self-grading bias
+_ACTIVE_TASK_TYPES = {"practice", "project", "exploration"}
+_SKILL_LEVEL_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2}
+_VAGUE_PATTERNS = re.compile(
+    r"\b(understand|learn about|familiarize|get comfortable|explore the basics of|"
+    r"read about|review|overview of|introduction to)\b",
+    re.IGNORECASE,
+)
+_MIN_NODES = 5
+_MAX_NODES = 30
+
+
+# --- Structural pre-checks (fail-fast before LLM eval) --------------------
+
+
+def _structural_precheck(plan_data: dict) -> list[str]:
+    """Check for structurally broken plans that no amount of prompting will fix.
+
+    Returns a list of fatal issues. Empty list means plan is structurally sound.
+    """
+    issues = []
+    nodes = plan_data.get("nodes", [])
+
+    if not nodes:
+        issues.append("Plan has zero nodes.")
+        return issues
+
+    if len(nodes) < _MIN_NODES:
+        issues.append(f"Plan has only {len(nodes)} nodes (minimum {_MIN_NODES}).")
+    if len(nodes) > _MAX_NODES:
+        issues.append(f"Plan has {len(nodes)} nodes (maximum {_MAX_NODES}).")
+
+    # Check required fields on every node
+    required = {"title", "skill_level", "type_of_task"}
+    for n in nodes:
+        missing = required - set(n.keys())
+        if missing:
+            issues.append(
+                f"Node {n.get('node_number', '?')} missing fields: {', '.join(missing)}."
+            )
+
+    # Check for duplicate titles
+    titles = [n.get("title", "") for n in nodes]
+    dupes = {t for t in titles if titles.count(t) > 1 and t}
+    if dupes:
+        issues.append(f"Duplicate node titles: {', '.join(dupes)}.")
+
+    if not plan_data.get("skill"):
+        issues.append("Plan missing skill name.")
+    if not plan_data.get("end_goal"):
+        issues.append("Plan missing end_goal.")
+
+    return issues
+
+
+# --- Deterministic scoring ------------------------------------------------
+
+
+def _compute_deterministic_scores(plan_data: dict) -> dict:
+    """Compute scores that don't need an LLM — just counting and checking.
+
+    Returns a dict of {criterion_name: {score, comment, details}}.
+    """
+    nodes = plan_data.get("nodes", [])
+    total = len(nodes) or 1
+
+    # 1. practice_ratio: % of nodes with active task types
+    active_count = sum(
+        1 for n in nodes if n.get("type_of_task", "").lower() in _ACTIVE_TASK_TYPES
+    )
+    practice_ratio = active_count / total
+    practice_score = min(1.0, practice_ratio / 0.7)  # 70% = 1.0, linear below
+    passive_nodes = [
+        n.get("node_number", "?") for n in nodes
+        if n.get("type_of_task", "").lower() not in _ACTIVE_TASK_TYPES
+    ]
+
+    # 2. progression: check skill_level ordering isn't jumbled
+    levels = [
+        _SKILL_LEVEL_ORDER.get(n.get("skill_level", "").lower(), -1)
+        for n in nodes
+    ]
+    valid_levels = [l for l in levels if l >= 0]
+    if len(valid_levels) >= 2:
+        # Count ordering violations (a node harder than a later node)
+        violations = sum(
+            1 for i in range(len(valid_levels) - 1)
+            if valid_levels[i] > valid_levels[i + 1]
+        )
+        progression_score = max(0.0, 1.0 - (violations / (len(valid_levels) - 1)))
+    else:
+        progression_score = 0.5  # Can't evaluate with < 2 levels
+
+    # 3. no_fluff: check for vague descriptions
+    vague_nodes = []
+    for n in nodes:
+        desc = n.get("description", "")
+        title = n.get("title", "")
+        if _VAGUE_PATTERNS.search(title) or (
+            desc and len(desc) < 20
+        ):
+            vague_nodes.append(n.get("node_number", "?"))
+    fluff_ratio = len(vague_nodes) / total
+    no_fluff_score = max(0.0, 1.0 - fluff_ratio * 2)  # 50%+ vague = 0.0
+
+    # 4. time_integrity: flag overloaded (5+ resources) or empty (no description) nodes
+    overloaded = []
+    empty = []
+    for n in nodes:
+        res_count = len(n.get("resources", []))
+        if res_count >= 5:
+            overloaded.append(n.get("node_number", "?"))
+        if not n.get("description", "").strip():
+            empty.append(n.get("node_number", "?"))
+    time_problems = len(overloaded) + len(empty)
+    time_score = max(0.0, 1.0 - (time_problems / total))
+
+    # 5. resource_quality: check variety of resource types across the plan
+    all_resource_types = set()
+    nodes_with_resources = 0
+    for n in nodes:
+        resources = n.get("resources", [])
+        if resources:
+            nodes_with_resources += 1
+            for r in resources:
+                all_resource_types.add(r.get("type", ""))
+    type_variety = min(1.0, len(all_resource_types) / 3)  # 3+ types = full marks
+    resource_coverage = nodes_with_resources / total
+    resource_score = (type_variety + resource_coverage) / 2
+
+    return {
+        "practice_ratio": {
+            "score": round(practice_score, 2),
+            "comment": f"{active_count}/{total} active nodes ({practice_ratio:.0%})",
+            "details": {"passive_nodes": passive_nodes},
+        },
+        "progression": {
+            "score": round(progression_score, 2),
+            "comment": f"{violations} ordering violation(s)" if len(valid_levels) >= 2 else "Too few levels to evaluate",
+            "details": {},
+        },
+        "no_fluff": {
+            "score": round(no_fluff_score, 2),
+            "comment": f"{len(vague_nodes)} vague node(s)" + (f": {vague_nodes}" if vague_nodes else ""),
+            "details": {"vague_nodes": vague_nodes},
+        },
+        "time_integrity": {
+            "score": round(time_score, 2),
+            "comment": (
+                f"{len(overloaded)} overloaded, {len(empty)} empty"
+                if time_problems else "All nodes well-sized"
+            ),
+            "details": {"overloaded": overloaded, "empty": empty},
+        },
+        "resource_quality": {
+            "score": round(resource_score, 2),
+            "comment": f"{len(all_resource_types)} resource type(s), {nodes_with_resources}/{total} nodes have resources",
+            "details": {"types_found": list(all_resource_types)},
+        },
+    }
+
+
+# --- LLM-based subjective evaluation (only what we can't count) -----------
+
+LLM_EVAL_PROMPT = """\
+Score this learning plan's SUBJECTIVE quality. Deterministic checks (practice ratio, \
+progression order, resource variety) are handled separately — focus only on:
+
+- tangible_outcomes (0.0-1.0): Does every node produce something observable? \
+A file, project, recording, solved problem — not just "understand" or "be familiar with."
+- engagement (0.0-1.0): Would a motivated learner stay interested? Variety in approaches? \
+Avoids long stretches of the same task type?
+
+Also return:
+- strengths: what works well (list of strings)
+- weaknesses: what needs fixing (list of strings)
+- fix_instructions: specific actionable fixes for the planner (list of strings). \
+Empty if both scores >= {threshold}.
+
+Return JSON:
+{{"tangible_outcomes": <float>, "engagement": <float>, "strengths": [...], "weaknesses": [...], "fix_instructions": [...]}}
+
+Plan: {skill} | Goal: {end_goal} | {days_per_week}d/wk, {minutes_per_day}min/day
+
+{nodes_text}
+"""
+
+REGEN_ADDON = """\
+Improve the previous plan using these fixes:
+{fix_instructions}
+
+Do not repeat mistakes. Keep what works, fix what doesn't.
+
+Previous plan:
+{previous_plan_summary}
+"""
+
+
+def _format_nodes_for_eval(nodes: list[dict]) -> str:
+    """Format plan nodes into readable text for the evaluator."""
+    lines = []
+    for n in nodes:
+        options_str = ""
+        if n.get("options"):
+            opts = ", ".join(o.get("title", "") for o in n["options"])
+            options_str = f"\n    Options: {opts}"
+        resources_str = ""
+        if n.get("resources"):
+            res = ", ".join(
+                f'{r.get("type", "?")}:{r.get("title", "?")}'
+                for r in n["resources"]
+            )
+            resources_str = f"\n    Resources: {res}"
+
+        lines.append(
+            f"  Node {n.get('node_number', '?')}: {n.get('title', '?')} "
+            f"[{n.get('skill_level', '?')}, {n.get('type_of_task', '?')}]\n"
+            f"    {n.get('description', '')}"
+            f"{options_str}{resources_str}"
+        )
+    return "\n".join(lines)
+
+
+# --- Combined evaluation (deterministic + LLM) ----------------------------
+
+
+async def _evaluate_plan(plan_data: dict) -> dict:
+    """Hybrid evaluation: deterministic scores + LLM for subjective criteria.
+
+    Returns a combined evaluation dict with all criteria, overall_score,
+    strengths, weaknesses, and fix_instructions.
+    """
+    import json as _json
+
+    # Deterministic scores
+    det_scores = _compute_deterministic_scores(plan_data)
+
+    # LLM subjective scores (different model than planner)
+    nodes_text = _format_nodes_for_eval(plan_data.get("nodes", []))
+    prompt = LLM_EVAL_PROMPT.format(
+        skill=plan_data.get("skill", ""),
+        end_goal=plan_data.get("end_goal", ""),
+        days_per_week=plan_data.get("days_per_week", 3),
+        minutes_per_day=plan_data.get("minutes_per_day", 20),
+        threshold=EVAL_THRESHOLD,
+        nodes_text=nodes_text,
+    )
+
+    response = await litellm.acompletion(
+        model=EVAL_MODEL,
+        messages=[
+            {"role": "system", "content": "You are a strict learning plan quality evaluator. Be honest — do not inflate scores."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+    )
+
+    llm_raw = _json.loads(response.choices[0].message.content)
+
+    # Merge all criteria
+    criteria = []
+    for name, data in det_scores.items():
+        criteria.append({"name": name, "score": data["score"], "comment": data["comment"]})
+    for name in ("tangible_outcomes", "engagement"):
+        criteria.append({
+            "name": name,
+            "score": round(max(0.0, min(1.0, llm_raw.get(name, 0.5))), 2),
+            "comment": f"LLM-assessed",
+        })
+
+    # Weighted average: practice_ratio 2x, tangible_outcomes 2x, rest 1x
+    weights = {
+        "practice_ratio": 2, "tangible_outcomes": 2,
+        "progression": 1, "time_integrity": 1,
+        "resource_quality": 1, "no_fluff": 1, "engagement": 1,
+    }
+    score_map = {c["name"]: c["score"] for c in criteria}
+    weighted_sum = sum(score_map.get(k, 0.5) * w for k, w in weights.items())
+    total_weight = sum(weights.values())
+    overall_score = round(weighted_sum / total_weight, 2)
+
+    # Build fix_instructions: combine LLM suggestions with deterministic findings
+    fix_instructions = list(llm_raw.get("fix_instructions", []))
+
+    # Add deterministic-derived fixes
+    det_details = det_scores
+    if det_details["practice_ratio"]["score"] < 0.85:
+        passive = det_details["practice_ratio"]["details"].get("passive_nodes", [])
+        if passive:
+            fix_instructions.append(
+                f"Convert passive nodes {passive} to hands-on practice/project tasks."
+            )
+    if det_details["no_fluff"]["score"] < 0.85:
+        vague = det_details["no_fluff"]["details"].get("vague_nodes", [])
+        if vague:
+            fix_instructions.append(
+                f"Rewrite vague nodes {vague} with specific, actionable descriptions and titles."
+            )
+    if det_details["time_integrity"]["score"] < 0.85:
+        overloaded = det_details["time_integrity"]["details"].get("overloaded", [])
+        empty = det_details["time_integrity"]["details"].get("empty", [])
+        if overloaded:
+            fix_instructions.append(f"Nodes {overloaded} have too many resources — trim to 2-4.")
+        if empty:
+            fix_instructions.append(f"Nodes {empty} have no description — add meaningful content.")
+    if det_details["resource_quality"]["score"] < 0.85:
+        types_found = det_details["resource_quality"]["details"].get("types_found", [])
+        fix_instructions.append(
+            f"Only {len(types_found)} resource type(s) used ({types_found}). Mix in youtube, article, exercise, book."
+        )
+
+    # Clear fix_instructions if we passed
+    if overall_score >= EVAL_THRESHOLD:
+        fix_instructions = []
+
+    return {
+        "overall_score": overall_score,
+        "criteria": criteria,
+        "strengths": llm_raw.get("strengths", []),
+        "weaknesses": llm_raw.get("weaknesses", []),
+        "fix_instructions": fix_instructions,
+    }
+
+
+# --- Fix verification (did the regenerated plan actually address fixes?) ---
+
+
+def _verify_fixes_applied(
+    old_weaknesses: list[str],
+    old_fix_instructions: list[str],  # noqa: ARG001 — reserved for future fine-grained matching
+    new_evaluation: dict,
+) -> dict:
+    """Check whether previous weaknesses were addressed in the new plan.
+
+    Compares old weaknesses/fixes against new evaluation's weaknesses.
+    Returns a summary of what was fixed and what persists.
+    """
+    new_weaknesses = set(w.lower() for w in new_evaluation.get("weaknesses", []))
+    old_weakness_set = set(w.lower() for w in old_weaknesses)
+
+    fixed = old_weakness_set - new_weaknesses
+    persisting = old_weakness_set & new_weaknesses
+    new_issues = new_weaknesses - old_weakness_set
+
+    return {
+        "fixed": list(fixed),
+        "persisting": list(persisting),
+        "new_issues": list(new_issues),
+        "fix_rate": len(fixed) / max(1, len(old_weakness_set)),
+    }
+
+
+# --- Retry loop -----------------------------------------------------------
+
+
+async def evaluate_and_refine_plan(tool_context: ToolContext) -> dict:
+    """Evaluate the generated plan and retry if quality is below threshold.
+
+    Reads plan_result from session state. Runs structural pre-checks, then
+    hybrid evaluation (deterministic + LLM). If score < 0.85, regenerates
+    with targeted fixes up to 3 attempts. Tracks the highest-scoring plan
+    across all attempts.
+
+    No arguments needed — reads from and writes to session state.
+
+    Returns:
+        A dict with the final evaluation score, attempt count, and status.
+    """
+    import json as _json
+
+    plan_raw = tool_context.state.get("plan_result", "")
+    try:
+        plan_data = _json.loads(plan_raw) if isinstance(plan_raw, str) else plan_raw
+    except (_json.JSONDecodeError, TypeError):
+        return {"error": "No valid plan_result in session state."}
+
+    if not plan_data or not isinstance(plan_data, dict):
+        return {"error": "No plan data found. Transfer to planner_agent first."}
+
+    # Structural pre-check — fail fast on broken plans
+    structural_issues = _structural_precheck(plan_data)
+    if structural_issues:
+        return {
+            "error": "Plan is structurally broken and needs full regeneration.",
+            "issues": structural_issues,
+        }
+
+    original_input = {
+        "skill": plan_data.get("skill", ""),
+        "end_goal": plan_data.get("end_goal", ""),
+        "days_per_week": plan_data.get("days_per_week", 3),
+        "minutes_per_day": plan_data.get("minutes_per_day", 20),
+    }
+
+    best_plan = plan_data
+    best_score = 0.0
+    current_plan = plan_data
+    attempts = []
+    prev_weaknesses: list[str] = []
+    prev_fix_instructions: list[str] = []
+
+    for attempt in range(EVAL_MAX_RETRIES):
+        evaluation = await _evaluate_plan(current_plan)
+        score = evaluation.get("overall_score", 0.0)
+        fix_instructions = evaluation.get("fix_instructions", [])
+
+        # Verify fixes from previous round were applied
+        fix_verification = None
+        if attempt > 0 and prev_weaknesses:
+            fix_verification = _verify_fixes_applied(
+                prev_weaknesses, prev_fix_instructions, evaluation,
+            )
+
+        attempt_record = {
+            "attempt": attempt + 1,
+            "score": score,
+            "criteria": evaluation.get("criteria", []),
+            "strengths": evaluation.get("strengths", []),
+            "weaknesses": evaluation.get("weaknesses", []),
+            "fix_count": len(fix_instructions),
+        }
+        if fix_verification:
+            attempt_record["fix_verification"] = fix_verification
+        attempts.append(attempt_record)
+
+        # Track the highest-scoring plan
+        if score > best_score:
+            best_score = score
+            best_plan = current_plan
+
+        if score >= EVAL_THRESHOLD:
+            break
+
+        if attempt >= EVAL_MAX_RETRIES - 1:
+            break
+
+        # Prepare for regeneration
+        prev_weaknesses = evaluation.get("weaknesses", [])
+        prev_fix_instructions = fix_instructions
+
+        # If fixes from last round weren't applied, escalate the instructions
+        if fix_verification and fix_verification["fix_rate"] < 0.5:
+            fix_instructions = [
+                f"CRITICAL (unfixed from last attempt): {fi}"
+                for fi in fix_instructions
+            ]
+
+        previous_summary = _format_nodes_for_eval(current_plan.get("nodes", []))
+        fix_text = "\n".join(f"- {f}" for f in fix_instructions)
+
+        regen_addon = REGEN_ADDON.format(
+            fix_instructions=fix_text,
+            previous_plan_summary=previous_summary,
+        )
+
+        regen_messages = [
+            {"role": "system", "content": planner_agent.instruction},
+            {"role": "user", "content": (
+                f"Create a learning plan for:\n"
+                f"Skill: {original_input['skill']}\n"
+                f"End goal: {original_input['end_goal']}\n"
+                f"Schedule: {original_input['days_per_week']} days/week, "
+                f"{original_input['minutes_per_day']} min/day\n\n"
+                f"{regen_addon}"
+            )},
+        ]
+
+        response = await litellm.acompletion(
+            model="openai/gpt-5.4-mini",
+            messages=regen_messages,
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+
+        raw = response.choices[0].message.content
+        try:
+            candidate = _json.loads(raw)
+        except (_json.JSONDecodeError, TypeError):
+            continue
+
+        # Structural check on regenerated plan too
+        regen_issues = _structural_precheck(candidate)
+        if regen_issues:
+            continue
+
+        current_plan = candidate
+
+    # Write the highest-scoring plan back to state
+    tool_context.state["plan_result"] = best_plan
+    tool_context.state["_eval_score"] = best_score
+    tool_context.state["_eval_attempts"] = len(attempts)
+
+    return {
+        "status": "passed" if best_score >= EVAL_THRESHOLD else "best_effort",
+        "final_score": best_score,
+        "threshold": EVAL_THRESHOLD,
+        "attempts": attempts,
+        "message": (
+            f"Plan scored {best_score:.2f} after {len(attempts)} attempt(s). "
+            + ("Meets quality threshold." if best_score >= EVAL_THRESHOLD
+               else "Below threshold — saving best effort.")
+        ),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -669,6 +1447,21 @@ async def persist_plan(state: dict) -> dict:
                 await conv.save()
 
     branch_id = plan.active_branch_id
+
+    # --- Enrich resources (guaranteed, LLM-proof) ----------------------
+    # If enrich_plan_resources already ran, nodes with valid URLs are left
+    # untouched. Only nodes still missing URLs trigger new fetches.
+    import asyncio as _asyncio
+
+    nodes_data = plan_data.get("nodes", [])
+    skill = plan_data.get("skill", "")
+    nodes_needing_enrichment = [
+        nd for nd in nodes_data
+        if not any(r.get("url") for r in nd.get("resources", []))
+    ]
+    if nodes_needing_enrichment:
+        loop = _asyncio.get_running_loop()
+        await loop.run_in_executor(None, _enrich_nodes_sync, nodes_needing_enrichment, skill)
 
     # --- Build nodes ---------------------------------------------------
     nodes: list[PlanNode] = []
@@ -799,6 +1592,138 @@ async def save_complete_plan(tool_context: ToolContext) -> dict:
     return result
 
 
+def _fetch_resources_for_node(node: dict, skill: str = "") -> list[dict]:
+    """Fetch and assemble validated resources for a single plan node (synchronous).
+
+    Uses the plan's skill name as search context so a node title like
+    "Survive a cafe or restaurant" resolves to the correct domain (e.g. French
+    language) rather than unrelated results.
+    """
+    title = node.get("title", "").strip()
+    description = node.get("description", "").strip()
+    if not title:
+        return []
+
+    # "French Language: Survive a cafe or restaurant" — gives search engines the context they need
+    topic = f"{skill}: {title}" if skill else title
+
+    # Richer Tavily query includes description for better article relevance
+    if description:
+        article_query = f"{skill} {title} {description[:120]}".strip() if skill else f"{title} {description[:120]}"
+    else:
+        article_query = None
+
+    results = find_resources(
+        topic=topic,
+        article_query=article_query,
+        include_youtube=True,
+        include_articles=True,
+        include_books=True,
+        max_video_duration_minutes=45,
+    )
+
+    # Keywords used to filter YouTube titles for relevance
+    topic_keywords = [w.lower() for w in re.split(r"\W+", topic) if len(w) >= 4]
+
+    youtube = results.get("youtube", [])
+    articles = results.get("articles", [])
+    books = results.get("books", [])
+
+    # Filter YouTube: video title must contain at least one topic keyword
+    if topic_keywords:
+        youtube = [
+            v for v in youtube
+            if any(kw in v.get("title", "").lower() for kw in topic_keywords)
+        ]
+
+    # Assemble: 1 YouTube + up to 2 articles + 1 book = max 4
+    merged = []
+    if youtube:
+        merged.append({**youtube[0], "is_optional": False})
+    for a in articles[:2]:
+        merged.append({**a, "is_optional": len(merged) > 0})
+    if books and len(merged) < 4:
+        merged.append({**books[0], "is_optional": True})
+
+    # Preserve exercise/event resources — no URLs expected for these types
+    for r in node.get("resources", []):
+        if r.get("type") in ("exercise", "event"):
+            merged.append(r)
+
+    return merged
+
+
+def _enrich_nodes_sync(nodes: list[dict], skill: str = "") -> list[dict]:
+    """Fetch real resources for every node concurrently (synchronous, thread-safe).
+
+    Runs up to 5 nodes in parallel. Each node's find_resources call itself
+    parallelizes internal HTTP checks (oEmbed, article validation).
+    Mutates and returns the nodes list.
+    """
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {
+            pool.submit(_fetch_resources_for_node, node, skill): i
+            for i, node in enumerate(nodes)
+        }
+        node_resources: dict[int, list[dict]] = {}
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                node_resources[idx] = future.result()
+            except Exception:
+                node_resources[idx] = []
+
+    for i, node in enumerate(nodes):
+        fetched = node_resources.get(i, [])
+        if fetched:
+            node["resources"] = fetched
+
+    return nodes
+
+
+async def enrich_plan_resources(tool_context: ToolContext) -> dict:
+    """Fetch and validate real resources for every plan node.
+
+    Reads plan_result from session state. For each node, calls find_resources
+    (YouTube Data API + oEmbed check, Tavily + validation, Google Books/Open Library)
+    concurrently (max 5 nodes at a time). Writes the enriched plan back to state.
+
+    Call after evaluate_and_refine_plan and before save_complete_plan.
+
+    Returns:
+        A dict with the number of nodes enriched and total nodes.
+    """
+    import asyncio
+    import json as _json
+
+    plan_raw = tool_context.state.get("plan_result", "")
+    try:
+        plan_data = _json.loads(plan_raw) if isinstance(plan_raw, str) else plan_raw
+    except (_json.JSONDecodeError, TypeError):
+        return {"error": "No valid plan_result in session state."}
+
+    if not plan_data or not isinstance(plan_data, dict):
+        return {"error": "No plan data found."}
+
+    nodes = plan_data.get("nodes", [])
+    if not nodes:
+        return {"status": "no_nodes", "enriched": 0}
+
+    skill = plan_data.get("skill", "")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _enrich_nodes_sync, nodes, skill)
+
+    enriched_count = sum(1 for n in nodes if any(r.get("url") for r in n.get("resources", [])))
+    plan_data["nodes"] = nodes
+    tool_context.state["plan_result"] = plan_data
+
+    return {
+        "status": "enriched",
+        "nodes_enriched": enriched_count,
+        "total_nodes": len(nodes),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Root Orchestrator
 # ---------------------------------------------------------------------------
@@ -822,8 +1747,10 @@ You are a learning companion. Your core job is helping users learn new skills an
 ## Critical workflow (follow these steps IN ORDER):
 1. Chat naturally to learn what skill they want, their goal, and how much time they have (days_per_week, minutes_per_day). Ask ONE question at a time. Don't over-question — if they give you enough to work with, get to building.
 2. Once you have enough info, transfer to planner_agent. It will build the roadmap and a color palette, storing everything in session state automatically.
-3. You MUST call the save_complete_plan tool. This is REQUIRED — do NOT skip this step. The tool reads from session state, you do not need to pass arguments.
-4. After save_complete_plan succeeds, reply to the user with a short, excited summary of what they'll learn. Mention a few highlights from the roadmap. Get them hyped to start.
+3. After the planner finishes, call evaluate_and_refine_plan. No arguments needed.
+4. Call enrich_plan_resources. No arguments needed. This fetches real, validated YouTube videos, articles, and books for every node.
+5. Call save_complete_plan. REQUIRED — do NOT skip.
+6. Reply with a short, excited summary of what they'll learn. Don't mention scores or evaluation internals.
 
 ## Location-aware resources
 If {user_location_opted_in?} is "True" and the user's city is not "unknown", you have their location. Use it to find local events whenever relevant — both during plan creation and when the user just wants to explore what's happening nearby. Don't ask the user about their location — you already have it from their profile.
@@ -833,6 +1760,6 @@ If {user_location_opted_in?} is "True" and the user's city is not "unknown", you
 - ALWAYS call save_complete_plan after the sub-agents finish building a plan. The plan is NOT saved until you call this tool.
 - Be warm and casual. Short responses. Match the user's energy.
 """,
-    tools=[save_complete_plan],
+    tools=[evaluate_and_refine_plan, enrich_plan_resources, save_complete_plan],
     sub_agents=[planner_agent, researcher_agent],
 )

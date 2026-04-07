@@ -102,9 +102,19 @@ class _NodeDetailSheetState extends State<NodeDetailSheet> {
                 ),
                 const SizedBox(height: 16),
               ],
-              if (widget.node.resources.isNotEmpty) ...[
+              if (widget.node.resources
+                  .where((r) =>
+                      r.url.isNotEmpty ||
+                      r.type == ResourceType.exercise ||
+                      r.type == ResourceType.event)
+                  .isNotEmpty) ...[
                 _ResourcesSection(
-                  resources: widget.node.resources,
+                  resources: widget.node.resources
+                      .where((r) =>
+                          r.url.isNotEmpty ||
+                          r.type == ResourceType.exercise ||
+                          r.type == ResourceType.event)
+                      .toList(),
                 ),
                 const SizedBox(height: 16),
               ],
