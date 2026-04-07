@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'Frontend/Web/**'
+      - 'Frontend/Flutter/**'
       - '.github/workflows/deploy-web-pages.yml'
   workflow_dispatch:
 
@@ -19,7 +20,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Flutter dependencies
+        working-directory: Frontend/Flutter
+        run: flutter pub get
+
+      - name: Build debug APK
+        working-directory: Frontend/Flutter
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lattice-apk
+          path: Frontend/Flutter/build/app/outputs/flutter-apk/app-debug.apk
+
+  build-web:
+    needs: build-apk
     runs-on: ubuntu-latest
 
     defaults:
@@ -32,6 +66,15 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lattice-apk
+          path: Frontend/Web/public
+
+      - name: Rename APK
+        run: mv public/app-debug.apk public/lattice.apk
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -52,7 +95,7 @@ jobs:
           path: Frontend/Web/dist
 
   deploy:
-    needs: build
+    needs: build-web
     runs-on: ubuntu-latest
 
     environment:
