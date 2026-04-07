@@ -9,6 +9,7 @@ os.environ.setdefault("OPENAI_API_KEY", settings.OPENAI_API_KEY)
 os.environ.setdefault("GOOGLE_API_KEY", settings.GOOGLE_API_KEY)
 os.environ.setdefault("GOOGLE_CSE_ID", settings.GOOGLE_CSE_ID)
 os.environ.setdefault("EVENTBRITE_TOKEN", settings.EVENTBRITE_TOKEN)
+os.environ.setdefault("TAVILY_API_KEY", settings.TAVILY_API_KEY)
 
 from google.adk.runners import Runner
 from google.genai.types import Content, Part
