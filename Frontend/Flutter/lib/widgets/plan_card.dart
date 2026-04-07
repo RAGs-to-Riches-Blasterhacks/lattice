@@ -326,16 +326,29 @@ class _PlanCardState extends State<PlanCard>
               children: [
                 
                 
-                if (widget.resources.isNotEmpty) ...[
+                if (widget.resources
+                    .where((r) =>
+                        r.url.isNotEmpty ||
+                        r.type == ResourceType.exercise ||
+                        r.type == ResourceType.event)
+                    .isNotEmpty) ...[
                   _CollapsibleSection(
                     title: 'Resources',
                     expandedContent: Column(
                       children: widget.resources
+                          .where((r) =>
+                              r.url.isNotEmpty ||
+                              r.type == ResourceType.exercise ||
+                              r.type == ResourceType.event)
                           .map((r) => Padding(
                                 padding: const EdgeInsets.only(bottom: 6.0),
                                 child: GestureDetector(
-                                  onTap: () => launchUrl(Uri.parse(r.url),
-                                      mode: LaunchMode.externalApplication),
+                                  onTap: () {
+                                    final uri = Uri.tryParse(r.url);
+                                    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+                                      launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    }
+                                  },
                                   child: Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,

@@ -1,5 +1,6 @@
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import litellm
 litellm.suppress_debug_info = True
@@ -310,7 +311,7 @@ Each node:
 Resources:
 - type: youtube | article | book | exercise | event
 - title: specific and real
-- url: or ""
+- url: ""
 - duration_minutes: int or 0
 - is_optional: bool
 - Mix types across nodes
@@ -373,59 +374,343 @@ def _is_youtube(url: str) -> bool:
     return "youtube.com" in url or "youtu.be" in url
 
 
-def _is_book_site(url: str) -> bool:
-    return any(d in url for d in ("goodreads.com", "amazon.com", "google.com/books"))
+def _parse_iso_duration_minutes(duration: str) -> int:
+    """Parse ISO 8601 duration (e.g. PT1H23M45S) to total minutes."""
+    match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration)
+    if not match:
+        return 0
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    return hours * 60 + minutes
 
 
-def find_resources(topic: str, include_youtube: bool = True, include_articles: bool = True, include_books: bool = True) -> dict:
-    """Find YouTube videos, articles, and books for a learning topic in a single search.
+def _oembed_accessible(video_id: str) -> bool:
+    """Return True if the YouTube video is accessible via oEmbed (definitive liveness check)."""
+    try:
+        resp = httpx.get(
+            "https://www.youtube.com/oembed",
+            params={"url": f"https://www.youtube.com/watch?v={video_id}", "format": "json"},
+            timeout=5,
+        )
+        # 200 = accessible, 401 = embedding disabled but video exists and is watchable.
+        # 403 = age-restricted/region-locked, 404 = deleted/nonexistent.
+        return resp.status_code in (200, 401)
+    except Exception:
+        return False
 
-    Uses one API call and classifies results by URL. This is the preferred tool
-    for gathering learning resources — call it once instead of separate searches.
+
+def _youtube_search(topic: str, max_duration_minutes: int = 90) -> list[dict]:
+    """Search YouTube for videos on a topic, filtering by availability and duration.
+
+    Uses YouTube Data API v3: search → videos.list for duration/status → parallel
+    oEmbed verification to guarantee each returned URL is actually watchable.
+    Returns [] on failure.
+    """
+    if not GOOGLE_API_KEY:
+        return []
+    try:
+        search_resp = httpx.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "part": "snippet",
+                "q": f"{topic} tutorial",
+                "type": "video",
+                "maxResults": 15,
+                "key": GOOGLE_API_KEY,
+            },
+            timeout=10,
+        )
+        search_resp.raise_for_status()
+        search_items = search_resp.json().get("items", [])
+        if not search_items:
+            return []
+
+        id_to_title = {
+            item["id"]["videoId"]: item["snippet"]["title"]
+            for item in search_items
+            if item.get("id", {}).get("videoId")
+        }
+        if not id_to_title:
+            return []
+
+        details_resp = httpx.get(
+            "https://www.googleapis.com/youtube/v3/videos",
+            params={
+                "part": "contentDetails,status",
+                "id": ",".join(id_to_title.keys()),
+                "key": GOOGLE_API_KEY,
+            },
+            timeout=10,
+        )
+        details_resp.raise_for_status()
+        detail_items = details_resp.json().get("items", [])
+    except Exception:
+        return []
+
+    # First pass: filter by API-reported status, duration, and age restriction.
+    candidates = []
+    for item in detail_items:
+        video_id = item.get("id", "")
+        status = item.get("status", {})
+        if status.get("privacyStatus") != "public":
+            continue
+        if status.get("uploadStatus") != "processed":
+            continue
+        content_details = item.get("contentDetails", {})
+        if content_details.get("contentRating", {}).get("ytRating") == "ytAgeRestricted":
+            continue
+
+        raw_duration = content_details.get("duration", "")
+        duration_min = _parse_iso_duration_minutes(raw_duration)
+        if duration_min > max_duration_minutes:
+            continue
+
+        candidates.append({
+            "video_id": video_id,
+            "title": id_to_title.get(video_id, ""),
+            "duration_min": duration_min,
+        })
+
+    # Second pass: parallel oEmbed check — the definitive "is this actually watchable" test.
+    accessible: set[str] = set()
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_oembed_accessible, c["video_id"]): c["video_id"] for c in candidates}
+        for future in as_completed(futures):
+            if future.result():
+                accessible.add(futures[future])
+
+    results = []
+    for c in candidates:
+        if c["video_id"] not in accessible:
+            continue
+        results.append({
+            "type": "youtube",
+            "title": c["title"],
+            "url": f"https://www.youtube.com/watch?v={c['video_id']}",
+            "duration_minutes": c["duration_min"] or None,
+            "is_optional": len(results) >= 3,
+        })
+
+    return results
+
+
+def _google_books_search(topic: str) -> list[dict]:
+    """Search Google Books for books that have actual preview content.
+
+    Only returns books where viewability is PARTIAL or ALL_PAGES — these have
+    real content accessible at the link. Books with NO_PAGES viewability are
+    skipped (they show a "preview not available" wall).
+    """
+    if not GOOGLE_API_KEY:
+        return []
+    try:
+        resp = httpx.get(
+            "https://www.googleapis.com/books/v1/volumes",
+            params={
+                "q": topic,
+                "maxResults": 10,
+                "key": GOOGLE_API_KEY,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+    except Exception:
+        return []
+
+    results = []
+    for item in items:
+        info = item.get("volumeInfo", {})
+        access = item.get("accessInfo", {})
+        viewability = access.get("viewability", "UNKNOWN")
+
+        # Only include books with real preview content.
+        if viewability not in ("PARTIAL", "ALL_PAGES"):
+            continue
+
+        # previewLink goes directly to the readable preview; prefer it over canonicalVolumeLink.
+        url = info.get("previewLink") or info.get("canonicalVolumeLink", "")
+        if not url:
+            continue
+
+        results.append({
+            "type": "book",
+            "title": info.get("title", ""),
+            "url": url,
+            "duration_minutes": None,
+            "is_optional": len(results) >= 2,
+        })
+    return results
+
+
+def _openlibrary_search(topic: str) -> list[dict]:
+    """Search Open Library for books. Work page URLs always resolve to a valid book info page."""
+    try:
+        resp = httpx.get(
+            "https://openlibrary.org/search.json",
+            params={"q": topic, "limit": 8},
+            timeout=10,
+            headers={"User-Agent": "Lattice/1.0 (learning app; contact via github)"},
+        )
+        resp.raise_for_status()
+        docs = resp.json().get("docs", [])
+    except Exception:
+        return []
+
+    results = []
+    for doc in docs:
+        key = doc.get("key", "")   # e.g. "/works/OL27448W"
+        title = doc.get("title", "")
+        if not key or not title:
+            continue
+        # Work pages (openlibrary.org/works/OL...W) are stable and always resolve.
+        # They show cover, description, all editions, and borrow/buy links.
+        results.append({
+            "type": "book",
+            "title": title,
+            "url": f"https://openlibrary.org{key}",
+            "duration_minutes": None,
+            "is_optional": len(results) >= 2,
+        })
+    return results
+
+
+# Patterns only reliable enough to check in the page <title>, not the body.
+# Body text contains too many legitimate uses of "not found", "unavailable", etc.
+_SOFT_404_TITLE_PATTERNS = re.compile(
+    r"(page not found|404|page (doesn.t|does not) exist|"
+    r"we can.t find (that|this|the) page|access denied|forbidden)",
+    re.IGNORECASE,
+)
+
+
+def _strip_scripts_and_tags(html: str) -> str:
+    """Remove <script>/<style> blocks and all remaining tags, leaving plain text."""
+    # Remove script and style blocks including their content.
+    text = re.sub(r"<(script|style)[^>]*>.*?</(script|style)>", " ", html, flags=re.IGNORECASE | re.DOTALL)
+    # Strip remaining tags.
+    return re.sub(r"<[^>]+>", " ", text)
+
+
+def _article_is_valid(url: str, topic: str) -> bool:
+    """Return True if the URL is a live, English, on-topic page.
+
+    Checks (in order):
+    1. HTTP status — hard 4xx/5xx = reject
+    2. Soft 404 — title contains a "not found" phrase = reject
+    3. Language — html lang attribute is explicitly non-English = reject;
+                  fallback: >60% non-ASCII alphabetic chars in visible text = reject
+    4. Relevance — none of the topic's keywords appear anywhere on the page = reject
+    """
+    try:
+        resp = httpx.get(url, timeout=10, follow_redirects=True)
+        if resp.status_code >= 400:
+            return False
+        html = resp.text
+    except Exception:
+        return True  # Network error — keep to avoid over-filtering.
+
+    # --- Soft 404: title only (body has too many false positives) ---
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    title = title_match.group(1) if title_match else ""
+    if _SOFT_404_TITLE_PATTERNS.search(title):
+        return False
+
+    # Strip scripts/styles before language and relevance checks so JS/CSS
+    # unicode doesn't skew character ratios or pollute keyword matching.
+    plain = _strip_scripts_and_tags(html)
+
+    # --- Language check ---
+    lang_match = re.search(r'<html[^>]+lang=["\']([^"\']+)["\']', html, re.IGNORECASE)
+    if lang_match:
+        lang = lang_match.group(1).lower()
+        if lang and not lang.startswith("en"):
+            return False
+    else:
+        # Fallback: only reject if majority (>60%) of visible letters are non-ASCII.
+        # High threshold to avoid rejecting English pages with some foreign words/code.
+        letters = [c for c in plain if c.isalpha()]
+        if letters and sum(1 for c in letters if ord(c) > 127) / len(letters) > 0.60:
+            return False
+
+    # --- Relevance check ---
+    # Require at least 2 meaningful keywords from the topic to appear in the page.
+    # A single keyword match (e.g. "french" on any French-related page) is too loose.
+    keywords = [w.lower() for w in re.split(r"\W+", topic) if len(w) >= 4]
+    if keywords:
+        page_lower = plain.lower()
+        matches = sum(1 for kw in keywords if kw in page_lower)
+        required = 1 if len(keywords) == 1 else 2
+        if matches < required:
+            return False
+
+    return True
+
+
+def _validate_article_links(articles: list[dict], topic: str) -> list[dict]:
+    """Filter articles in parallel: dead links, soft 404s, non-English, off-topic."""
+    if not articles:
+        return []
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {
+            pool.submit(_article_is_valid, a["url"], topic): a
+            for a in articles if a.get("url")
+        }
+        return [futures[f] for f in as_completed(futures) if f.result()]
+
+
+def find_resources(
+    topic: str,
+    article_query: str | None = None,
+    include_youtube: bool = True,
+    include_articles: bool = True,
+    include_books: bool = True,
+    max_video_duration_minutes: int = 90,
+) -> dict:
+    """Find YouTube videos, articles, and books for a learning topic.
+
+    YouTube: Data API v3 with oEmbed verification (no dead/unavailable videos).
+    Books: Google Books (previews only) with Open Library fallback (always-valid work URLs).
+    Articles: Tavily + parallel GET validation with soft-404 detection.
 
     Args:
-        topic: The topic or task to search resources for.
+        topic: The topic or task to search resources for (used for YouTube/books).
+        article_query: Optional richer query for Tavily article search. Falls back to topic.
         include_youtube: Whether to include YouTube video results.
         include_articles: Whether to include article/tutorial results.
         include_books: Whether to include book results.
+        max_video_duration_minutes: Skip YouTube videos longer than this. Default 90.
 
     Returns:
         A dict with categorized Resource-shaped results.
     """
-    results = _tavily_search(f"{topic} tutorial guide resources books", max_results=10)
+    youtube = _youtube_search(topic, max_video_duration_minutes) if include_youtube else []
 
-    youtube = []
-    articles = []
     books = []
+    if include_books:
+        # Primary: Google Books (only returns books with actual preview content).
+        books = _google_books_search(topic)
+        # Fallback: Open Library work URLs always resolve to a useful book info page.
+        if not books:
+            books = _openlibrary_search(topic)
 
-    for item in results:
-        url = item.get("url", "")
-        title = item.get("title", "")
-
-        if include_youtube and _is_youtube(url):
-            youtube.append({
-                "type": "youtube",
-                "title": title,
-                "url": url,
-                "duration_minutes": None,
-                "is_optional": len(youtube) >= 3,
-            })
-        elif include_books and _is_book_site(url):
-            books.append({
-                "type": "book",
-                "title": title,
-                "url": url,
-                "duration_minutes": None,
-                "is_optional": len(books) >= 2,
-            })
-        elif include_articles and not _is_youtube(url):
-            articles.append({
+    articles = []
+    if include_articles:
+        search_query = article_query if article_query else f"{topic} guide tips tutorial"
+        results = _tavily_search(search_query, max_results=15)
+        raw_articles = []
+        for item in results:
+            url = item.get("url", "")
+            if _is_youtube(url):
+                continue
+            raw_articles.append({
                 "type": "article",
-                "title": title,
+                "title": item.get("title", ""),
                 "url": url,
                 "duration_minutes": None,
-                "is_optional": len(articles) >= 3,
+                "is_optional": len(raw_articles) >= 3,
             })
+        articles = _validate_article_links(raw_articles, topic)
 
     return {
         "youtube": youtube,
@@ -1163,6 +1448,21 @@ async def persist_plan(state: dict) -> dict:
 
     branch_id = plan.active_branch_id
 
+    # --- Enrich resources (guaranteed, LLM-proof) ----------------------
+    # If enrich_plan_resources already ran, nodes with valid URLs are left
+    # untouched. Only nodes still missing URLs trigger new fetches.
+    import asyncio as _asyncio
+
+    nodes_data = plan_data.get("nodes", [])
+    skill = plan_data.get("skill", "")
+    nodes_needing_enrichment = [
+        nd for nd in nodes_data
+        if not any(r.get("url") for r in nd.get("resources", []))
+    ]
+    if nodes_needing_enrichment:
+        loop = _asyncio.get_running_loop()
+        await loop.run_in_executor(None, _enrich_nodes_sync, nodes_needing_enrichment, skill)
+
     # --- Build nodes ---------------------------------------------------
     nodes: list[PlanNode] = []
     for i, nd in enumerate(plan_data.get("nodes", [])):
@@ -1292,6 +1592,138 @@ async def save_complete_plan(tool_context: ToolContext) -> dict:
     return result
 
 
+def _fetch_resources_for_node(node: dict, skill: str = "") -> list[dict]:
+    """Fetch and assemble validated resources for a single plan node (synchronous).
+
+    Uses the plan's skill name as search context so a node title like
+    "Survive a cafe or restaurant" resolves to the correct domain (e.g. French
+    language) rather than unrelated results.
+    """
+    title = node.get("title", "").strip()
+    description = node.get("description", "").strip()
+    if not title:
+        return []
+
+    # "French Language: Survive a cafe or restaurant" — gives search engines the context they need
+    topic = f"{skill}: {title}" if skill else title
+
+    # Richer Tavily query includes description for better article relevance
+    if description:
+        article_query = f"{skill} {title} {description[:120]}".strip() if skill else f"{title} {description[:120]}"
+    else:
+        article_query = None
+
+    results = find_resources(
+        topic=topic,
+        article_query=article_query,
+        include_youtube=True,
+        include_articles=True,
+        include_books=True,
+        max_video_duration_minutes=45,
+    )
+
+    # Keywords used to filter YouTube titles for relevance
+    topic_keywords = [w.lower() for w in re.split(r"\W+", topic) if len(w) >= 4]
+
+    youtube = results.get("youtube", [])
+    articles = results.get("articles", [])
+    books = results.get("books", [])
+
+    # Filter YouTube: video title must contain at least one topic keyword
+    if topic_keywords:
+        youtube = [
+            v for v in youtube
+            if any(kw in v.get("title", "").lower() for kw in topic_keywords)
+        ]
+
+    # Assemble: 1 YouTube + up to 2 articles + 1 book = max 4
+    merged = []
+    if youtube:
+        merged.append({**youtube[0], "is_optional": False})
+    for a in articles[:2]:
+        merged.append({**a, "is_optional": len(merged) > 0})
+    if books and len(merged) < 4:
+        merged.append({**books[0], "is_optional": True})
+
+    # Preserve exercise/event resources — no URLs expected for these types
+    for r in node.get("resources", []):
+        if r.get("type") in ("exercise", "event"):
+            merged.append(r)
+
+    return merged
+
+
+def _enrich_nodes_sync(nodes: list[dict], skill: str = "") -> list[dict]:
+    """Fetch real resources for every node concurrently (synchronous, thread-safe).
+
+    Runs up to 5 nodes in parallel. Each node's find_resources call itself
+    parallelizes internal HTTP checks (oEmbed, article validation).
+    Mutates and returns the nodes list.
+    """
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {
+            pool.submit(_fetch_resources_for_node, node, skill): i
+            for i, node in enumerate(nodes)
+        }
+        node_resources: dict[int, list[dict]] = {}
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                node_resources[idx] = future.result()
+            except Exception:
+                node_resources[idx] = []
+
+    for i, node in enumerate(nodes):
+        fetched = node_resources.get(i, [])
+        if fetched:
+            node["resources"] = fetched
+
+    return nodes
+
+
+async def enrich_plan_resources(tool_context: ToolContext) -> dict:
+    """Fetch and validate real resources for every plan node.
+
+    Reads plan_result from session state. For each node, calls find_resources
+    (YouTube Data API + oEmbed check, Tavily + validation, Google Books/Open Library)
+    concurrently (max 5 nodes at a time). Writes the enriched plan back to state.
+
+    Call after evaluate_and_refine_plan and before save_complete_plan.
+
+    Returns:
+        A dict with the number of nodes enriched and total nodes.
+    """
+    import asyncio
+    import json as _json
+
+    plan_raw = tool_context.state.get("plan_result", "")
+    try:
+        plan_data = _json.loads(plan_raw) if isinstance(plan_raw, str) else plan_raw
+    except (_json.JSONDecodeError, TypeError):
+        return {"error": "No valid plan_result in session state."}
+
+    if not plan_data or not isinstance(plan_data, dict):
+        return {"error": "No plan data found."}
+
+    nodes = plan_data.get("nodes", [])
+    if not nodes:
+        return {"status": "no_nodes", "enriched": 0}
+
+    skill = plan_data.get("skill", "")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _enrich_nodes_sync, nodes, skill)
+
+    enriched_count = sum(1 for n in nodes if any(r.get("url") for r in n.get("resources", [])))
+    plan_data["nodes"] = nodes
+    tool_context.state["plan_result"] = plan_data
+
+    return {
+        "status": "enriched",
+        "nodes_enriched": enriched_count,
+        "total_nodes": len(nodes),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Root Orchestrator
 # ---------------------------------------------------------------------------
@@ -1316,8 +1748,9 @@ You are a learning companion. Your core job is helping users learn new skills an
 1. Chat naturally to learn what skill they want, their goal, and how much time they have (days_per_week, minutes_per_day). Ask ONE question at a time. Don't over-question — if they give you enough to work with, get to building.
 2. Once you have enough info, transfer to planner_agent. It will build the roadmap and a color palette, storing everything in session state automatically.
 3. After the planner finishes, call evaluate_and_refine_plan. No arguments needed.
-4. Call save_complete_plan. REQUIRED — do NOT skip.
-5. Reply with a short, excited summary of what they'll learn. Don't mention scores or evaluation internals.
+4. Call enrich_plan_resources. No arguments needed. This fetches real, validated YouTube videos, articles, and books for every node.
+5. Call save_complete_plan. REQUIRED — do NOT skip.
+6. Reply with a short, excited summary of what they'll learn. Don't mention scores or evaluation internals.
 
 ## Location-aware resources
 If {user_location_opted_in?} is "True" and the user's city is not "unknown", you have their location. Use it to find local events whenever relevant — both during plan creation and when the user just wants to explore what's happening nearby. Don't ask the user about their location — you already have it from their profile.
@@ -1327,6 +1760,6 @@ If {user_location_opted_in?} is "True" and the user's city is not "unknown", you
 - ALWAYS call save_complete_plan after the sub-agents finish building a plan. The plan is NOT saved until you call this tool.
 - Be warm and casual. Short responses. Match the user's energy.
 """,
-    tools=[evaluate_and_refine_plan, save_complete_plan],
+    tools=[evaluate_and_refine_plan, enrich_plan_resources, save_complete_plan],
     sub_agents=[planner_agent, researcher_agent],
 )
