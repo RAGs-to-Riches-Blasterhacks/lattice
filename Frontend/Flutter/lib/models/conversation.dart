@@ -15,7 +15,7 @@ class Message {
     return Message(
       role: json['role'] as String,
       content: json['content'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      timestamp: DateTime.parse(json['timestamp'] as String).toLocal(),
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
   }
