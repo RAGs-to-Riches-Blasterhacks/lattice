@@ -330,19 +330,21 @@ List<_RoadmapItem> _buildItems(Plan plan) {
                     nodeCompleted: _selectedNode!.status == NodeStatus.completed,
                     startExpanded: true,
                     onClose: _dismissNodeOverlay,
-                    onMarkComplete: () {
-                      final planId = widget.planId;
-                      final nodeId = _selectedNode!.nodeId;
-                      _dismissNodeOverlay();
-                      if (planId != null) {
-                        context
-                            .read<PlansProvider>()
-                            .logProgress(planId, nodeId, status: 'completed')
-                            .then((_) {
-                          if (mounted) _loadPlan();
-                        });
-                      }
-                    },
+                    onMarkComplete: _selectedNode!.status == NodeStatus.in_progress
+                        ? () {
+                            final planId = widget.planId;
+                            final nodeId = _selectedNode!.nodeId;
+                            _dismissNodeOverlay();
+                            if (planId != null) {
+                              context
+                                  .read<PlansProvider>()
+                                  .logProgress(planId, nodeId, status: 'completed')
+                                  .then((_) {
+                                if (mounted) _loadPlan();
+                              });
+                            }
+                          }
+                        : null,
                     onAddNote: () {
                       final planId = widget.planId;
                       final nodeId = _selectedNode!.nodeId;

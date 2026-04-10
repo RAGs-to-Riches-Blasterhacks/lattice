@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from app.models.plan import Branch, Plan, PlanNode
+from app.models.plan import Branch, NodeStatus, Plan, PlanNode
 
 # Fields that constitute a "core change" and trigger branching.
 CORE_FIELDS = {"title", "description"}
@@ -119,7 +119,7 @@ def create_branch(
     # The divergence point is the node before the changed one
     prev_node_id = old_node.prev_node_id
 
-    # Build the modified node
+    # Build the modified node — mark it in_progress so it becomes the active task
     new_node_id = str(uuid4())
     new_node = PlanNode(
         node_id=new_node_id,
@@ -132,6 +132,7 @@ def create_branch(
         options=changes.get("options", old_node.options),
         resources=changes.get("resources", old_node.resources),
         prev_node_id=prev_node_id,
+        status=NodeStatus.in_progress,
         created_at=now,
     )
 
@@ -177,6 +178,7 @@ def create_branch(
     plan.nodes.extend(new_nodes)
     plan.branches.append(new_branch)
     plan.active_branch_id = new_branch_id
+    plan.current_node_id = new_node_id
     plan.updated_at = now
     plan.generation_version += 1
 
