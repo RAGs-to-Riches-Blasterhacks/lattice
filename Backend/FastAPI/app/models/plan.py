@@ -81,6 +81,8 @@ class PlanNode(BaseModel):
     completed_at: Optional[datetime] = None
     notes: list[NodeNote] = Field(default_factory=list)
     activity_log: list[ActivityEntry] = Field(default_factory=list)
+    is_checkpoint: bool = False
+    quiz: Optional[dict] = None
     needs_regeneration: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     regenerated_at: Optional[datetime] = None

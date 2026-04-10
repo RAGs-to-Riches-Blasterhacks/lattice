@@ -57,6 +57,10 @@ class RoadmapNodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (node.isCheckpoint) {
+      return _CheckpointBanner(node: node, isLast: isLast, onTap: onTap);
+    }
+
     final w = MediaQuery.of(context).size.width;
 
     final circleSize = w * 0.112; // ≈44 @ 393px
@@ -163,6 +167,79 @@ class RoadmapNodeCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CheckpointBanner extends StatelessWidget {
+  final PlanNode node;
+  final bool isLast;
+  final VoidCallback? onTap;
+
+  const _CheckpointBanner({
+    required this.node,
+    required this.isLast,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final nodeSpacing = w * 0.061;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : nodeSpacing),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 1,
+                color: AppColors.accent.withValues(alpha: 0.4),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.flag_rounded,
+                    color: AppColors.accent,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    node.title,
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: AppColors.accent.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -43,6 +43,7 @@ class PlanNodeOutput(BaseModel):
     description: str = ""
     skill_level: str
     type_of_task: str
+    is_checkpoint: bool = False
     options: list[NodeOptionOutput] = Field(default_factory=list)
     resources: list[ResourceOutput] = Field(default_factory=list)
 
@@ -302,11 +303,20 @@ Roadmap rules:
 Each node:
 - title
 - description (casual, experienced tone)
-- task_type (practice | project | exploration)
+- type_of_task (practice | project | exploration)
 - skill_level (beginner | intermediate | advanced)
-- success_levels (real-world phrasing)
+- is_checkpoint (bool, default false — see Checkpoints below)
 - options (0-3, meaningfully different, optional)
 - resources (2-5 items)
+
+Checkpoints:
+- Include exactly 3 checkpoint nodes (is_checkpoint: true)
+- The final node of the roadmap must always be a checkpoint
+- Space the other 2 checkpoints roughly at the 1/3 and 2/3 marks
+- Checkpoint titles: "Checkpoint: <milestone name>" (e.g. "Checkpoint: Core Foundations")
+- Checkpoint description: summarize what the user can now do/build by this point
+- Checkpoints count toward the 5-30 node total
+- Checkpoints have no options; resources are optional
 
 Resources:
 - type: youtube | article | book | exercise | event
@@ -1493,6 +1503,7 @@ async def persist_plan(state: dict) -> dict:
             description=nd.get("description", ""),
             skill_level=nd.get("skill_level"),
             type_of_task=nd.get("type_of_task"),
+            is_checkpoint=nd.get("is_checkpoint", False),
             options=options,
             resources=resources,
             prev_node_id=nodes[-1].node_id if nodes else None,

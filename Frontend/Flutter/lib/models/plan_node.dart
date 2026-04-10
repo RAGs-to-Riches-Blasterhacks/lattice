@@ -116,6 +116,7 @@ class PlanNode {
   final String? skillLevel;
   final String? typeOfTask;
   final bool needsRegeneration;
+  final bool isCheckpoint;
 
   const PlanNode({
     required this.nodeId,
@@ -130,6 +131,7 @@ class PlanNode {
     this.skillLevel,
     this.typeOfTask,
     this.needsRegeneration = false,
+    this.isCheckpoint = false,
   });
 
   factory PlanNode.fromJson(Map<String, dynamic> json) {
@@ -155,6 +157,7 @@ class PlanNode {
       skillLevel: json['skill_level'] as String?,
       typeOfTask: json['type_of_task'] as String?,
       needsRegeneration: json['needs_regeneration'] as bool? ?? false,
+      isCheckpoint: json['is_checkpoint'] as bool? ?? false,
     );
   }
 }
